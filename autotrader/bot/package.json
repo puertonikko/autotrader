@@ -1,0 +1,16 @@
+{
+  "name": "autotrader-bot",
+  "version": "2.0.0",
+  "description": "Autonomous trading bot — Twelve Data + Claude AI + E*Trade",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
