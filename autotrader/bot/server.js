@@ -257,7 +257,7 @@ function bizAdd(d, n) {
   while (c < n) { r.setDate(r.getDate() + 1); if (r.getDay() !== 0 && r.getDay() !== 6) c++; }
   return r;
 }
-const clearOk = lt => !lt || new Date() >= bizAdd(new Date(lt), 3);
+const clearOk = lt => true;
 
 function isMarketOpen() {
   const et  = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
