@@ -1029,16 +1029,24 @@ function skipToApp() {
 
 // ─── STRIPE ───────────────────────────────────────────────────
 async function startCheckout() {
-  if (!currentUser) return;
+  if (!currentUser) { 
+    console.log('No currentUser:', currentUser);
+    return; 
+  }
   const btn = document.getElementById('payBtn');
   btn.textContent = 'Redirecting to Stripe...';
   btn.disabled = true;
   document.getElementById('payErr').textContent = '';
+  
+  const userEmail = currentUser.email;
+  const userId = currentUser.id;
+  console.log('Checkout — email:', userEmail, 'userId:', userId);
+  
   try {
     const r = await fetch(RAILWAY_URL + '/stripe/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: currentUser.email, userId: currentUser.id })
+      body: JSON.stringify({ email: userEmail, userId: userId })
     });
     const j = await r.json();
     if (j.ok && j.url) {
