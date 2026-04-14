@@ -1,7 +1,8 @@
 // ============================================================
-// AutoTrader Bot — Railway Server v4.1
-// Fixed: E*Trade OAuth requests now include credentials:'omit'
-// to prevent cookie interference causing 401 errors
+// AutoTrader Bot — Railway Server v4.2
+// Two-phase stop loss:
+//   Phase 1: Fixed stop 1.2% below entry (before +1% target)
+//   Phase 2: Trailing stop 0.5% once +1% is hit — lets winners run
 // ============================================================
 import express from 'express';
 import crypto from 'crypto';
@@ -62,7 +63,7 @@ async function sendPush(cfg, title, message, url = '') {
   } catch (e) { console.log('[PUSH] Failed:', e.message); }
 }
 
-// ─── E*TRADE OAUTH HELPERS ───────────────────────────────────
+// ─── E*TRADE OAUTH ───────────────────────────────────────────
 function oauthSign(method, url, params, consumerSecret, tokenSecret = '') {
   const sorted = Object.keys(params).sort()
     .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`).join('&');
@@ -70,14 +71,13 @@ function oauthSign(method, url, params, consumerSecret, tokenSecret = '') {
   const sigKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(tokenSecret)}`;
   return crypto.createHmac('sha1', sigKey).update(base).digest('base64');
 }
-
 function makeOAuthHeader(method, url, cfg, extra = {}) {
   const p = {
-    oauth_consumer_key:     cfg.e_key,
-    oauth_nonce:            crypto.randomBytes(16).toString('hex'),
+    oauth_consumer_key: cfg.e_key,
+    oauth_nonce: crypto.randomBytes(16).toString('hex'),
     oauth_signature_method: 'HMAC-SHA1',
-    oauth_timestamp:        Math.floor(Date.now() / 1000).toString(),
-    oauth_version:          '1.0',
+    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+    oauth_version: '1.0',
     ...extra
   };
   if (cfg.e_token && !extra.oauth_callback) p.oauth_token = cfg.e_token;
@@ -86,7 +86,6 @@ function makeOAuthHeader(method, url, cfg, extra = {}) {
     .map(k => `${encodeURIComponent(k)}="${encodeURIComponent(p[k])}"`)
     .join(', ');
 }
-
 function parseQS(text) {
   const r = {};
   text.split('&').forEach(pair => {
@@ -95,52 +94,34 @@ function parseQS(text) {
   });
   return r;
 }
-
-// KEY FIX: all E*Trade OAuth calls use credentials:'omit'
-// to prevent browser cookies from interfering with auth
 async function etradeOAuthFetch(url, header) {
-  return fetch(url, {
-    headers: { Authorization: header },
-    credentials: 'omit'   // prevents cookie interference causing 401s
-  });
+  return fetch(url, { headers: { Authorization: header }, credentials: 'omit' });
 }
 
 // ─── TOKEN RENEWAL ───────────────────────────────────────────
-let lastRenewal   = null;
-let renewalWarned = false;
-const RENEW_MS    = 90 * 60 * 1000;
-const WARN_MS     = 30 * 60 * 1000;
-
+let lastRenewal = null, renewalWarned = false;
+const RENEW_MS = 90 * 60 * 1000, WARN_MS = 30 * 60 * 1000;
 async function renewToken(cfg) {
   if (!cfg.e_key || !cfg.e_token) return false;
-  const base     = cfg.sandbox ? 'https://apisb.etrade.com' : 'https://api.etrade.com';
-  const renewUrl = `${base}/oauth/renew_access_token`;
+  const base = cfg.sandbox ? 'https://apisb.etrade.com' : 'https://api.etrade.com';
   try {
-    const r    = await etradeOAuthFetch(renewUrl, makeOAuthHeader('GET', renewUrl, cfg));
+    const r = await etradeOAuthFetch(`${base}/oauth/renew_access_token`, makeOAuthHeader('GET', `${base}/oauth/renew_access_token`, cfg));
     const text = await r.text();
-    if (r.ok && text.includes('renewed')) {
-      lastRenewal = new Date(); renewalWarned = false;
-      await addLog('info', 'E*Trade token renewed');
-      return true;
-    }
-    await addLog('err', `Token renewal failed: ${text}`);
+    if (r.ok && text.includes('renewed')) { lastRenewal = new Date(); renewalWarned = false; await addLog('info', 'E*Trade token renewed'); return true; }
     return false;
-  } catch (e) { await addLog('err', `Token renewal error: ${e.message}`); return false; }
+  } catch (e) { return false; }
 }
-
 async function checkAndRenewToken() {
   const cfg = await getConfig();
   if (!cfg?.e_token || cfg?.sandbox) return;
   const now = new Date();
   if (!lastRenewal || (now - lastRenewal) >= RENEW_MS) {
     const ok = await renewToken(cfg);
-    if (!ok) {
-      if (!renewalWarned || (now - renewalWarned) >= WARN_MS) {
-        renewalWarned = now;
-        const authUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || ''}/etrade/auth`;
-        await sendPush(cfg, 'AutoTrader — Action Required', 'E*Trade session expired. Tap to re-authorize.', authUrl);
-        await patchState({ status_text: 'E*Trade token expired — tap push notification to re-authorize' });
-      }
+    if (!ok && (!renewalWarned || (now - renewalWarned) >= WARN_MS)) {
+      renewalWarned = now;
+      const authUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || ''}/etrade/auth`;
+      await sendPush(cfg, 'AutoTrader — Action Required', 'E*Trade session expired. Tap to re-authorize.', authUrl);
+      await patchState({ status_text: 'E*Trade token expired — re-authorization required' });
     }
   }
 }
@@ -155,7 +136,7 @@ async function placeOrder(sym, action, shares, price, cfg) {
     await addLog('err', 'E*Trade tokens missing — visit /etrade/auth');
     return { success: false };
   }
-  const url  = `https://api.etrade.com/v1/accounts/${cfg.e_account}/orders/place`;
+  const url = `https://api.etrade.com/v1/accounts/${cfg.e_account}/orders/place`;
   const body = {
     PlaceOrderRequest: {
       orderType: 'EQ', clientOrderId: `BOT-${Date.now()}`,
@@ -172,8 +153,7 @@ async function placeOrder(sym, action, shares, price, cfg) {
     });
     const j = await r.json();
     if (r.status === 401) {
-      const authUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || ''}/etrade/auth`;
-      await sendPush(cfg, 'AutoTrader — Trade Failed', `${action} order for ${sym} failed — session expired.`, authUrl);
+      await sendPush(cfg, 'AutoTrader — Trade Failed', `${action} order for ${sym} failed — session expired.`);
       return { success: false, expired: true };
     }
     const orderId = j?.PlaceOrderResponse?.OrderIds?.[0]?.orderId;
@@ -191,117 +171,49 @@ async function placeOrder(sym, action, shares, price, cfg) {
 app.get('/etrade/auth', async (req, res) => {
   const cfg = await getConfig();
   if (!cfg?.e_key || !cfg?.e_secret) {
-    return res.send(`<html><body style="font-family:monospace;background:#050a0f;color:#b8d4ee;padding:30px">
-      <h2 style="color:#f5a623">Missing E*Trade Keys</h2>
-      <p>Add Consumer Key and Secret in your phone app Config first.</p>
-    </body></html>`);
+    return res.send(`<html><body style="font-family:monospace;background:#050a0f;color:#b8d4ee;padding:30px"><h2 style="color:#f5a623">Missing E*Trade Keys</h2><p>Add Consumer Key and Secret in Config first.</p></body></html>`);
   }
   const sandbox = cfg.sandbox;
   const apiBase = sandbox ? 'https://apisb.etrade.com' : 'https://api.etrade.com';
-  const reqUrl  = `${apiBase}/oauth/request_token`;
   try {
     const tmpCfg = { ...cfg, e_token: '', e_token_secret: '' };
-    const header = makeOAuthHeader('GET', reqUrl, tmpCfg, { oauth_callback: 'oob' });
-    // credentials:'omit' prevents cookie interference
-    const r    = await etradeOAuthFetch(reqUrl, header);
+    const r = await etradeOAuthFetch(`${apiBase}/oauth/request_token`, makeOAuthHeader('GET', `${apiBase}/oauth/request_token`, tmpCfg, { oauth_callback: 'oob' }));
     const text = await r.text();
-    const p    = parseQS(text);
-    if (!p.oauth_token) {
-      return res.send(`<html><body style="font-family:monospace;background:#050a0f;color:#f0364a;padding:30px">
-        <h2>Error getting request token</h2>
-        <pre>${text}</pre>
-        <p>HTTP Status: ${r.status}</p>
-        <p>Check that your Consumer Key and Secret are correct in Config.</p>
-      </body></html>`);
-    }
+    const p = parseQS(text);
+    if (!p.oauth_token) return res.send(`<html><body style="font-family:monospace;background:#050a0f;color:#f0364a;padding:30px"><h2>Error</h2><pre>${text}</pre><p>HTTP: ${r.status}</p></body></html>`);
     const authUrl = `https://us.etrade.com/e/t/etws/authorize?key=${cfg.e_key}&token=${p.oauth_token}`;
-    res.send(`<!DOCTYPE html><html><head>
-      <meta name="viewport" content="width=device-width,initial-scale=1">
-      <style>
-        body{font-family:monospace;background:#050a0f;color:#b8d4ee;padding:20px;max-width:540px;margin:0 auto}
-        h2{color:#f5a623} h3{color:#00e891;font-size:14px;margin:0 0 8px}
-        .box{background:#091422;border:1px solid #162d47;border-radius:6px;padding:16px;margin:12px 0}
-        .btn-link{display:block;background:#162d47;border:1px solid #2d9cff;color:#2d9cff;padding:14px;border-radius:5px;text-align:center;text-decoration:none;margin-top:10px;font-weight:700;font-size:15px}
-        input{width:100%;background:#0d1c30;border:1px solid #1c3a59;border-radius:4px;padding:12px;color:#b8d4ee;font-family:monospace;font-size:20px;box-sizing:border-box;margin:8px 0;letter-spacing:.15em;text-transform:uppercase}
-        button{background:#00e891;color:#050a0f;border:none;border-radius:5px;padding:14px;font-family:monospace;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:8px}
-        .note{font-size:11px;color:#4a7090;margin-top:6px;line-height:1.5}
-        #msg{margin-top:14px;padding:14px;border-radius:5px;display:none}
-        .mode{display:inline-block;padding:3px 10px;border-radius:3px;font-size:11px;font-weight:700;margin-bottom:14px}
-      </style>
+    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>body{font-family:monospace;background:#050a0f;color:#b8d4ee;padding:20px;max-width:540px;margin:0 auto}h2{color:#f5a623}h3{color:#00e891;font-size:14px;margin:0 0 8px}.box{background:#091422;border:1px solid #162d47;border-radius:6px;padding:16px;margin:12px 0}.btn-link{display:block;background:#162d47;border:1px solid #2d9cff;color:#2d9cff;padding:14px;border-radius:5px;text-align:center;text-decoration:none;margin-top:10px;font-weight:700;font-size:15px}input{width:100%;background:#0d1c30;border:1px solid #1c3a59;border-radius:4px;padding:12px;color:#b8d4ee;font-family:monospace;font-size:20px;box-sizing:border-box;margin:8px 0;letter-spacing:.15em;text-transform:uppercase}button{background:#00e891;color:#050a0f;border:none;border-radius:5px;padding:14px;font-family:monospace;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:8px}.note{font-size:11px;color:#4a7090;margin-top:6px;line-height:1.5}#msg{margin-top:14px;padding:14px;border-radius:5px;display:none}</style>
     </head><body>
-      <h2>E*Trade Authorization</h2>
-      <div class="mode" style="background:${sandbox?'rgba(245,166,35,.15)':'rgba(240,54,74,.15)'};color:${sandbox?'#f5a623':'#f0364a'}">${sandbox?'SANDBOX MODE':'LIVE TRADING'}</div>
-      <div class="box">
-        <h3>Step 1 — Authorize on E*Trade</h3>
-        <p>Tap the button below. Log in to E*Trade and approve the bot. You will see a <strong style="color:#00e891">PIN code</strong> — copy it.</p>
-        <a class="btn-link" href="${authUrl}" target="_blank">Tap to Authorize on E*Trade</a>
-        <p class="note">Come back here immediately after you see the PIN. Do not wait — PINs expire in about 2 minutes.</p>
-      </div>
-      <div class="box">
-        <h3>Step 2 — Enter PIN immediately</h3>
-        <input type="text" id="pin" placeholder="XXXXX" inputmode="text" maxlength="10" autocomplete="off" autocorrect="off" spellcheck="false"/>
-        <button onclick="go()">Complete Authorization</button>
-        <p class="note">Tokens save permanently to Supabase. Bot resumes automatically.</p>
-      </div>
-      <div id="msg"></div>
-      <script>
-        // Focus the PIN field as soon as the page loads
-        document.getElementById('pin').focus();
-        async function go() {
-          const pin = document.getElementById('pin').value.trim().toUpperCase();
-          if (!pin) { alert('Enter the PIN from E*Trade first'); return; }
-          document.getElementById('msg').style.display='block';
-          document.getElementById('msg').style.cssText='display:block;background:#162d47;padding:14px;border-radius:5px;color:#f5a623';
-          document.getElementById('msg').innerHTML='Saving tokens...';
-          try {
-            const r = await fetch('/etrade/callback?rt=${p.oauth_token}&pin='+encodeURIComponent(pin), { credentials: 'omit' });
-            const j = await r.json();
-            const el = document.getElementById('msg');
-            if (j.ok) {
-              el.style.cssText='display:block;background:#0a2a1a;border:1px solid #00e891;border-radius:5px;padding:16px';
-              el.innerHTML='<p style="color:#00e891;font-size:16px;margin:0">Authorization complete! Trading resumed. Close this page.</p>';
-            } else {
-              el.style.cssText='display:block;background:#2a0a0a;border:1px solid #f0364a;border-radius:5px;padding:16px';
-              el.innerHTML='<p style="color:#f0364a;margin:0">Error: '+j.error+'<br><br>Tap the E*Trade button again for a fresh PIN and enter it immediately.</p>';
-            }
-          } catch(e) {
-            document.getElementById('msg').innerHTML='Network error — try again';
-          }
-        }
-        // Allow pressing Enter to submit
-        document.getElementById('pin').addEventListener('keydown', e => { if(e.key==='Enter') go(); });
-      </script>
-    </body></html>`);
-  } catch (e) {
-    res.send(`<html><body style="font-family:monospace;background:#050a0f;color:#f0364a;padding:30px">
-      <h2>Server Error</h2><pre>${e.message}</pre>
-    </body></html>`);
-  }
+    <h2>E*Trade Authorization</h2>
+    <div class="box"><h3>Step 1 — Authorize on E*Trade</h3><p>Tap the button, log in, approve the bot. You will see a <strong style="color:#00e891">PIN</strong> — copy it immediately.</p><a class="btn-link" href="${authUrl}" target="_blank">Tap to Authorize on E*Trade</a><p class="note">Come back here immediately after you see the PIN.</p></div>
+    <div class="box"><h3>Step 2 — Enter PIN immediately</h3><input type="text" id="pin" placeholder="XXXXX" inputmode="text" maxlength="10" autocomplete="off" autocorrect="off" spellcheck="false"/><button onclick="go()">Complete Authorization</button><p class="note">Tokens save permanently to Supabase.</p></div>
+    <div id="msg"></div>
+    <script>
+    document.getElementById('pin').focus();
+    async function go(){const pin=document.getElementById('pin').value.trim().toUpperCase();if(!pin){alert('Enter the PIN first');return;}document.getElementById('msg').style.cssText='display:block;background:#162d47;padding:14px;border-radius:5px;color:#f5a623';document.getElementById('msg').innerHTML='Saving tokens...';try{const r=await fetch('/etrade/callback?rt=${p.oauth_token}&pin='+encodeURIComponent(pin),{credentials:'omit'});const j=await r.json();const el=document.getElementById('msg');if(j.ok){el.style.cssText='display:block;background:#0a2a1a;border:1px solid #00e891;border-radius:5px;padding:16px';el.innerHTML='<p style="color:#00e891;font-size:16px;margin:0">Authorization complete! Close this page.</p>';}else{el.style.cssText='display:block;background:#2a0a0a;border:1px solid #f0364a;border-radius:5px;padding:16px';el.innerHTML='<p style="color:#f0364a;margin:0">Error: '+j.error+'<br><br>Tap E*Trade button again for a fresh PIN.</p>';}}catch(e){document.getElementById('msg').innerHTML='Network error — try again';}}
+    document.getElementById('pin').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+    </script></body></html>`);
+  } catch (e) { res.send(`<html><body style="font-family:monospace;background:#050a0f;color:#f0364a;padding:30px"><h2>Error</h2><pre>${e.message}</pre></body></html>`); }
 });
 
 app.get('/etrade/callback', async (req, res) => {
   const { rt, pin } = req.query;
   if (!rt || !pin) return res.json({ ok: false, error: 'Missing token or PIN' });
-  const cfg     = await getConfig();
+  const cfg = await getConfig();
   const apiBase = cfg.sandbox ? 'https://apisb.etrade.com' : 'https://api.etrade.com';
-  const accUrl  = `${apiBase}/oauth/access_token`;
   try {
     const tmpCfg = { ...cfg, e_token: rt, e_token_secret: '' };
-    const header = makeOAuthHeader('GET', accUrl, tmpCfg, { oauth_verifier: pin.toUpperCase() });
-    // credentials:'omit' is the key fix — prevents cookie interference
-    const r    = await etradeOAuthFetch(accUrl, header);
+    const r = await etradeOAuthFetch(`${apiBase}/oauth/access_token`, makeOAuthHeader('GET', `${apiBase}/oauth/access_token`, tmpCfg, { oauth_verifier: pin.toUpperCase() }));
     const text = await r.text();
-    console.log(`[OAUTH] Access token response (${r.status}): ${text.substring(0, 200)}`);
-    const p    = parseQS(text);
-    if (!p.oauth_token) {
-      return res.json({ ok: false, error: `PIN rejected (HTTP ${r.status}). Try again — tap E*Trade button for a fresh PIN.` });
-    }
+    const p = parseQS(text);
+    if (!p.oauth_token) return res.json({ ok: false, error: `PIN rejected (HTTP ${r.status}). Try again with a fresh PIN.` });
     await patchConfig({ e_token: p.oauth_token, e_token_secret: p.oauth_token_secret });
     lastRenewal = new Date(); renewalWarned = false;
     await addLog('info', 'E*Trade OAuth complete — tokens saved');
     await patchState({ status_text: 'E*Trade authorized — bot ready' });
     const freshCfg = await getConfig();
-    await sendPush(freshCfg, 'AutoTrader — Authorized', 'E*Trade connected. Bot is now active.');
+    await sendPush(freshCfg, 'AutoTrader — Authorized', 'E*Trade connected. Bot is active.');
     res.json({ ok: true });
   } catch (e) { res.json({ ok: false, error: e.message }); }
 });
@@ -309,7 +221,7 @@ app.get('/etrade/callback', async (req, res) => {
 // ─── INDICATOR MATH ──────────────────────────────────────────
 const sma = (a, p) => a.map((_, i) => i < p - 1 ? null : a.slice(i - p + 1, i + 1).reduce((s, v) => s + v, 0) / p);
 function ema(a, p) { const k=2/(p+1),r=new Array(a.length).fill(null);r[p-1]=a.slice(0,p).reduce((s,v)=>s+v,0)/p;for(let i=p;i<a.length;i++)r[i]=a[i]*k+r[i-1]*(1-k);return r; }
-function rsi(c, p=14) { const r=new Array(c.length).fill(null);let g=0,l=0;for(let i=1;i<=p;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d;}let ag=g/p,al=l/p;r[p]=100-100/(1+(al===0?1e10:ag/al));for(let i=p+1;i<c.length;i++){const d=c[i]-c[i-1];ag=(ag*(p-1)+(d>0?d:0))/p;al=(al*(p-1)+(d<0?-d:0))/p;r[i]=100-100/(1+(al===0?1e10:ag/al));}return r; }
+function rsi(c,p=14){const r=new Array(c.length).fill(null);let g=0,l=0;for(let i=1;i<=p;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d;}let ag=g/p,al=l/p;r[p]=100-100/(1+(al===0?1e10:ag/al));for(let i=p+1;i<c.length;i++){const d=c[i]-c[i-1];ag=(ag*(p-1)+(d>0?d:0))/p;al=(al*(p-1)+(d<0?-d:0))/p;r[i]=100-100/(1+(al===0?1e10:ag/al));}return r;}
 function macd(c,f=12,s=26,sg=9){const ef=ema(c,f),es=ema(c,s);const ml=c.map((_,i)=>ef[i]!=null&&es[i]!=null?ef[i]-es[i]:null);const vals=ml.filter(v=>v!=null),off=ml.findIndex(v=>v!=null);const se=ema(vals,sg);const sl=new Array(ml.length).fill(null),hl=new Array(ml.length).fill(null);for(let i=0;i<se.length;i++){const x=off+i;if(se[i]!=null){sl[x]=se[i];hl[x]=ml[x]-se[i];}}return{ml,sl,hl};}
 function bbands(c,p=20,m=2){const mid=sma(c,p),up=[],lo=[];for(let i=0;i<c.length;i++){if(mid[i]==null){up.push(null);lo.push(null);continue;}const sl=c.slice(i-p+1,i+1),mv=mid[i];const std=Math.sqrt(sl.reduce((a,v)=>a+(v-mv)**2,0)/p);up.push(mv+m*std);lo.push(mv-m*std);}return{up,mid,lo};}
 function calcVwap(data){let cv=0,cq=0;return data.map(c=>{const tp=(c.high+c.low+c.close)/3;cv+=tp*c.volume;cq+=c.volume;return cq>0?cv/cq:tp;});}
@@ -384,117 +296,222 @@ BB_UP=$${ind.buV?.toFixed(2)} MID=$${ind.bmV?.toFixed(2)} LO=$${ind.blV?.toFixed
 VWAP=$${ind.vwap?.toFixed(2)} [${ind.sigs.VWAP?.label}] SMA20=$${ind.s20?.toFixed(2)} SMA50=$${ind.s50?.toFixed(2)} [${ind.sigs.SMA?.label}]
 EMA12=$${ind.e1?.toFixed(2)} EMA26=$${ind.e2?.toFixed(2)} [${ind.sigs.EMA?.label}]
 RMS=${ind.rms?.toFixed(3)}% ATR=$${ind.atr?.toFixed(2)} SLOPE=${ind.slp?.toFixed(5)} MOM=${ind.mom?.toFixed(2)}%
-STRATEGY: autonomous bot, target +1% per trade, max 3 business day hold, T+3 clearing enforced.
+STRATEGY: autonomous bot, target +1% per trade, two-phase stop: fixed 1.2% below entry, then trailing 0.5% after +1% hit.
 Return ONLY: {"grade":"B","score":72,"action":"BUY","confidence":70,"reason":"one sentence","target":${(ind.px*1.012).toFixed(2)},"stop":${(ind.px*.988).toFixed(2)},"strongest":"MACD","avoid":false}`;
   try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':antKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:200,messages:[{role:'user',content:prompt}]})});if(!r.ok)return null;const d=await r.json();return JSON.parse(d.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim());}catch(e){await addLog('err','Claude: '+e.message);return null;}
 }
 
 // ─── MARKET HOURS ────────────────────────────────────────────
 function bizAdd(d,n){let r=new Date(d),c=0;while(c<n){r.setDate(r.getDate()+1);if(r.getDay()!==0&&r.getDay()!==6)c++;}return r;}
-const clearOk=lt=>!lt||new Date()>=bizAdd(new Date(lt),3);
+// T+1 clearing rule (all US brokers as of May 28, 2024 SEC mandate)
+// Set CLEARING_DAYS = 1 for production (Schwab, E*Trade, all US brokers)
+// Set CLEARING_DAYS = 0 for testing (no lock)
+const CLEARING_DAYS = 0; // change to 1 for production
+const clearOk = lt => !lt || CLEARING_DAYS === 0 || new Date() >= bizAdd(new Date(lt), CLEARING_DAYS);
 function isMarketOpen(){const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));if(et.getDay()===0||et.getDay()===6)return false;const m=et.getHours()*60+et.getMinutes();return m>=570&&m<960;}
 function countBizDays(s,e){let c=0,d=new Date(s);while(d<e){d.setDate(d.getDate()+1);if(d.getDay()!==0&&d.getDay()!==6)c++;}return c;}
 
 // ─── COEFFICIENTS ────────────────────────────────────────────
 function updateCoefs(coefs,indSnap,result){const clamp=v=>+Math.max(0.05,Math.min(3,v)).toFixed(3);const win=result==='WIN';const out={...coefs};Object.keys(out).forEach(k=>{const s=indSnap?.[k];if(!s)return;const correct=(win&&s.bull===true)||(!win&&s.bull===false);out[k]=clamp(out[k]+(s.bull===null?0:correct?0.1:-0.06));});return out;}
 
-// ─── POSITION MONITOR ────────────────────────────────────────
-async function monitorPosition(state,cfg){
-  const t=state.open_trade;if(!t)return;
-  let px=t.entry_price;
-  try{const q=await fetchQuote(t.symbol,cfg.td_key);if(q?.price>0)px=q.price;}catch(e){}
-  const pnl=(px-t.entry_price)/t.entry_price*100;
-  const days=countBizDays(new Date(t.entry_time),new Date());
-  if(pnl>=1.0||px<=t.stop_price||days>=3){
-    const why=pnl>=1.0?'+1% target hit':px<=t.stop_price?'stop hit':'3-day expiry';
-    const result=pnl>=0?'WIN':'LOSS';
-    await addLog(result==='WIN'?'win':'loss',`${t.symbol} CLOSE — ${why} | ${pnl>=0?'+':''}${pnl.toFixed(2)}% @ $${px.toFixed(2)}`);
-    const res=await placeOrder(t.symbol,'SELL',t.shares,px,cfg);
-    if(!res.success&&!res.sandboxed)return;
-    const newCoefs=updateCoefs(state.coefs,t.ind_snapshot,result);
-    if(t.db_id)await updateTrade(t.db_id,{exit_price:px,result,pnl:+pnl.toFixed(3),exit_time:new Date().toISOString()});
-    await patchState({balance:state.balance*(1+pnl/100),open_trade:null,last_trade_date:new Date().toISOString(),coefs:newCoefs,status_text:`SOLD ${t.symbol} ${pnl>=0?'+':''}${pnl.toFixed(2)}%`});
-    await sendPush(cfg,`AutoTrader — ${result} ${pnl>=0?'+':''}${pnl.toFixed(2)}%`,`${t.symbol} closed: ${why} | ${pnl>=0?'+':''}${pnl.toFixed(2)}%`);
-  }else{
-    await patchState({status_text:`Holding ${t.symbol} ${pnl>=0?'+':''}${pnl.toFixed(2)}% | tgt $${t.target?.toFixed(2)} stop $${t.stop_price?.toFixed(2)} | day ${days}/3`});
+// ─── TWO-PHASE STOP LOSS LOGIC ───────────────────────────────
+//
+// Phase 1 (trailing_active = false):
+//   Fixed stop 1.2% below entry price
+//   If price hits stop → SELL at a loss
+//
+// Phase 2 (trailing_active = true):
+//   Triggered when pnl >= 1.0% (target hit)
+//   Instead of selling, switch to trailing mode
+//   Trail stop = highest_price * 0.995 (0.5% below peak)
+//   highest_price updates every scan cycle
+//   If price drops to trail_stop → SELL locking in gains
+//
+async function monitorPosition(state, cfg) {
+  const t = state.open_trade;
+  if (!t) return;
+
+  // Fetch current price
+  let px = t.entry_price;
+  try { const q = await fetchQuote(t.symbol, cfg.td_key); if (q?.price > 0) px = q.price; } catch (e) {}
+
+  const pnl  = (px - t.entry_price) / t.entry_price * 100;
+  const days = countBizDays(new Date(t.entry_time), new Date());
+
+  // Update highest price seen (used for trailing stop calculation)
+  const highestPrice = Math.max(px, t.highest_price || t.entry_price);
+
+  // ── PHASE 2: Trailing stop (activated after +1% hit) ──────
+  if (t.trailing_active) {
+    const trailStop = highestPrice * 0.995; // 0.5% below peak
+    const currentPnl = (px - t.entry_price) / t.entry_price * 100;
+
+    // Update highest price and trail stop in state every cycle
+    await patchState({
+      open_trade: { ...t, highest_price: highestPrice, trail_stop: trailStop },
+      status_text: `${t.symbol} TRAILING +${currentPnl.toFixed(2)}% | peak $${highestPrice.toFixed(2)} | trail stop $${trailStop.toFixed(2)}`
+    });
+
+    // Check if price has dropped below trail stop or 3-day expiry
+    if (px <= trailStop || days >= 3) {
+      const why = px <= trailStop ? `trail stop hit @ $${trailStop.toFixed(2)}` : '3-day expiry';
+      const result = currentPnl >= 0 ? 'WIN' : 'LOSS';
+      await addLog('win', `${t.symbol} CLOSE — ${why} | +${currentPnl.toFixed(2)}% @ $${px.toFixed(2)} (trailed from +1%)`);
+      await closePosition(t, px, result, currentPnl, state, cfg);
+    }
+    return;
+  }
+
+  // ── PHASE 1: Fixed stop (before +1% target) ───────────────
+  const hitTarget = pnl >= 1.0;
+  const hitStop   = px <= t.stop_price;
+  const expired   = days >= 3;
+
+  if (hitTarget) {
+    // +1% reached — switch to trailing stop instead of selling
+    const trailStop = px * 0.995;
+    await addLog('info', `${t.symbol} +1% TARGET HIT @ $${px.toFixed(2)} — switching to trailing stop (0.5% trail)`);
+    await patchState({
+      open_trade: { ...t, trailing_active: true, highest_price: px, trail_stop: trailStop },
+      status_text: `${t.symbol} trailing — peak $${px.toFixed(2)} trail stop $${trailStop.toFixed(2)}`
+    });
+    await sendPush(cfg, `AutoTrader — ${t.symbol} +1% Hit!`, `Switching to trailing stop. Current: $${px.toFixed(2)} | Trail: $${trailStop.toFixed(2)}`);
+  } else if (hitStop || expired) {
+    const why    = hitStop ? `fixed stop hit @ $${t.stop_price?.toFixed(2)}` : '3-day expiry';
+    const result = pnl >= 0 ? 'WIN' : 'LOSS';
+    await addLog(result === 'WIN' ? 'win' : 'loss', `${t.symbol} CLOSE — ${why} | ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}% @ $${px.toFixed(2)}`);
+    await closePosition(t, px, result, pnl, state, cfg);
+  } else {
+    // Still in phase 1 — update price tracking
+    await patchState({
+      open_trade: { ...t, highest_price: highestPrice },
+      status_text: `Holding ${t.symbol} ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}% | fixed stop $${t.stop_price?.toFixed(2)} | target $${t.target?.toFixed(2)} | day ${days}/3`
+    });
   }
 }
 
+async function closePosition(t, exitPx, result, pnl, state, cfg) {
+  const res = await placeOrder(t.symbol, 'SELL', t.shares, exitPx, cfg);
+  if (!res.success && !res.sandboxed) return;
+  const newCoefs = updateCoefs(state.coefs, t.ind_snapshot, result);
+  const newBal   = state.balance * (1 + pnl / 100);
+  if (t.db_id) await updateTrade(t.db_id, { exit_price: exitPx, result, pnl: +pnl.toFixed(3), exit_time: new Date().toISOString() });
+  await patchState({
+    balance: newBal, open_trade: null,
+    last_trade_date: new Date().toISOString(),
+    coefs: newCoefs,
+    status_text: `SOLD ${t.symbol} ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%`
+  });
+  await sendPush(cfg,
+    `AutoTrader — ${result} ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%`,
+    `${t.symbol} closed | ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}% | New balance: $${newBal.toFixed(2)}`
+  );
+}
+
 // ─── SCAN CYCLE ──────────────────────────────────────────────
-let scanning=false;
-async function scanCycle(){
-  if(scanning)return;scanning=true;
-  try{
-    const[state,cfg]=await Promise.all([getState(),getConfig()]);
-    if(!state?.running){scanning=false;return;}
-    if(isMarketOpen()&&!cfg.sandbox)await checkAndRenewToken();
-    if(state.open_trade){await monitorPosition(state,cfg);scanning=false;return;}
-    if(!isMarketOpen()){await patchState({status_text:'Market closed — bot idle'});scanning=false;return;}
-    if(!clearOk(state.last_trade_date)){const next=bizAdd(new Date(state.last_trade_date),3);await patchState({status_text:`Clearing lock — next trade: ${next.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`});scanning=false;return;}
-    const watchlist=(cfg.watchlist||'').split(',').map(s=>s.trim()).filter(Boolean);
-    if(!watchlist.length){await patchState({status_text:'Watchlist empty — screener runs at 9 AM ET'});scanning=false;return;}
-    const idx=(state.scan_idx||0)%watchlist.length;
-    const sym=watchlist[idx];
-    const newIdx=(state.scan_idx||0)+1;
-    await addLog('scan',`Scanning ${sym} [${idx+1}/${watchlist.length}] cycle ${Math.ceil(newIdx/watchlist.length)}`);
-    await patchState({scan_idx:newIdx,status_text:`Scanning ${sym}...`});
-    const candles=await fetchCandles(sym,cfg.interval,cfg.lookback,cfg.td_key);
-    let lv=null;if(cfg.interval!=='1day'){try{lv=await fetchVWAP(sym,cfg.interval,cfg.td_key);}catch(e){}}
-    const ind=analyze(candles,lv,state.coefs);
-    await patchState({last_analysis:{symbol:sym,...ind}});
-    let px=ind.px;try{const q=await fetchQuote(sym,cfg.td_key);if(q?.price>0)px=q.price;}catch(e){}
-    let grade=null;if(cfg.ant_key){grade=await aiGrade(sym,ind,cfg.ant_key);if(grade)await patchState({last_grade:grade});}
-    const GR=['A','B','C','D','F'];
-    const scoreOk=ind.comp>=cfg.min_score;
-    const gOk=grade?GR.indexOf(grade.grade)<=GR.indexOf(cfg.min_grade)&&!grade.avoid:ind.comp>=(cfg.min_score+8);
-    const isBuy=grade?grade.action==='BUY':ind.comp>=cfg.min_score;
-    if(scoreOk&&gOk&&isBuy){
-      const shares=Math.max(1,Math.floor(state.balance*(cfg.pos_pct/100)/px));
-      const target=grade?.target?+grade.target:+(px*1.012).toFixed(2);
-      const stop=grade?.stop?+grade.stop:+(px*0.988).toFixed(2);
-      await addLog('buy',`SIGNAL ${sym} | Grade=${grade?.grade||'rule'} Score=${ind.comp} | BUY ${shares}sh @ $${px.toFixed(2)} | tgt $${target.toFixed(2)} stop $${stop.toFixed(2)}`);
-      const res=await placeOrder(sym,'BUY',shares,px,cfg);
-      if(res.success||res.sandboxed){
-        const rows=await addTrade({symbol:sym,action:'BUY',shares,entry_price:px,target,stop_price:stop,result:'OPEN',grade:grade?.grade||'--',score:ind.comp,entry_time:new Date().toISOString(),ind_snapshot:ind.sigs});
-        const dbId=Array.isArray(rows)?rows[0]?.id:null;
-        await patchState({open_trade:{db_id:dbId,symbol:sym,shares,entry_price:px,target,stop_price:stop,entry_time:new Date().toISOString(),grade:grade?.grade||'--',score:ind.comp,ind_snapshot:ind.sigs},last_trade_date:new Date().toISOString(),status_text:`BOUGHT ${shares}sh ${sym} @ $${px.toFixed(2)} — watching for +1%`});
-      }
-    }else{
-      const why=!scoreOk?`score ${ind.comp}<${cfg.min_score}`:!gOk?`grade ${grade?.grade} below ${cfg.min_grade}`:grade?.avoid?'avoid flag':'no buy signal';
-      await addLog('skip',`${sym} — no trade (${why})`);
-      await patchState({status_text:`${sym} skipped — ${why}`});
+let scanning = false;
+async function scanCycle() {
+  if (scanning) return; scanning = true;
+  try {
+    const [state, cfg] = await Promise.all([getState(), getConfig()]);
+    if (!state?.running) { scanning = false; return; }
+    if (isMarketOpen() && !cfg.sandbox) await checkAndRenewToken();
+    if (state.open_trade) { await monitorPosition(state, cfg); scanning = false; return; }
+    if (!isMarketOpen()) { await patchState({ status_text: 'Market closed — bot idle' }); scanning = false; return; }
+    if (!clearOk(state.last_trade_date)) {
+      const next = bizAdd(new Date(state.last_trade_date), CLEARING_DAYS);
+      await patchState({ status_text: `T+1 clearing lock — next trade: ${next.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` });
+      scanning = false; return;
     }
-  }catch(err){await addLog('err',err.message);try{await patchState({status_text:'Error: '+err.message});}catch(e){}}
-  scanning=false;
+    const watchlist = (cfg.watchlist || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!watchlist.length) { await patchState({ status_text: 'Watchlist empty — screener runs at 9 AM ET' }); scanning = false; return; }
+    const idx    = (state.scan_idx || 0) % watchlist.length;
+    const sym    = watchlist[idx];
+    const newIdx = (state.scan_idx || 0) + 1;
+    await addLog('scan', `Scanning ${sym} [${idx + 1}/${watchlist.length}] cycle ${Math.ceil(newIdx / watchlist.length)}`);
+    await patchState({ scan_idx: newIdx, status_text: `Scanning ${sym}...` });
+    const candles = await fetchCandles(sym, cfg.interval, cfg.lookback, cfg.td_key);
+    let lv = null;
+    if (cfg.interval !== '1day') { try { lv = await fetchVWAP(sym, cfg.interval, cfg.td_key); } catch (e) {} }
+    const ind = analyze(candles, lv, state.coefs);
+    await patchState({ last_analysis: { symbol: sym, ...ind } });
+    let px = ind.px;
+    try { const q = await fetchQuote(sym, cfg.td_key); if (q?.price > 0) px = q.price; } catch (e) {}
+    let grade = null;
+    if (cfg.ant_key) { grade = await aiGrade(sym, ind, cfg.ant_key); if (grade) await patchState({ last_grade: grade }); }
+    const GR = ['A', 'B', 'C', 'D', 'F'];
+    const scoreOk = ind.comp >= cfg.min_score;
+    const gOk     = grade ? GR.indexOf(grade.grade) <= GR.indexOf(cfg.min_grade) && !grade.avoid : ind.comp >= (cfg.min_score + 8);
+    const isBuy   = grade ? grade.action === 'BUY' : ind.comp >= cfg.min_score;
+    if (scoreOk && gOk && isBuy) {
+      const shares = Math.max(1, Math.floor(state.balance * (cfg.pos_pct / 100) / px));
+      const target = grade?.target ? +grade.target : +(px * 1.012).toFixed(2);
+      const stop   = grade?.stop   ? +grade.stop   : +(px * 0.988).toFixed(2);
+      await addLog('buy', `SIGNAL ${sym} | Grade=${grade?.grade || 'rule'} Score=${ind.comp} | BUY ${shares}sh @ $${px.toFixed(2)} | fixed stop $${stop.toFixed(2)} → trail 0.5% after +1%`);
+      const res = await placeOrder(sym, 'BUY', shares, px, cfg);
+      if (res.success || res.sandboxed) {
+        const rows = await addTrade({
+          symbol: sym, action: 'BUY', shares, entry_price: px, target, stop_price: stop,
+          result: 'OPEN', grade: grade?.grade || '--', score: ind.comp,
+          entry_time: new Date().toISOString(), ind_snapshot: ind.sigs
+        });
+        const dbId = Array.isArray(rows) ? rows[0]?.id : null;
+        await patchState({
+          open_trade: {
+            db_id: dbId, symbol: sym, shares, entry_price: px, target,
+            stop_price: stop, entry_time: new Date().toISOString(),
+            grade: grade?.grade || '--', score: ind.comp, ind_snapshot: ind.sigs,
+            // Two-phase stop tracking fields
+            trailing_active: false,
+            highest_price: px,
+            trail_stop: null
+          },
+          last_trade_date: new Date().toISOString(),
+          status_text: `BOUGHT ${shares}sh ${sym} @ $${px.toFixed(2)} | fixed stop $${stop.toFixed(2)} → trails at +1%`
+        });
+      }
+    } else {
+      const why = !scoreOk ? `score ${ind.comp}<${cfg.min_score}` : !gOk ? `grade ${grade?.grade} below ${cfg.min_grade}` : `signal=${grade?.action || 'neutral'}`;
+      await addLog('skip', `${sym} — no trade (${why})`);
+      await patchState({ status_text: `${sym} skipped — ${why}` });
+    }
+  } catch (err) {
+    await addLog('err', err.message);
+    try { await patchState({ status_text: 'Error: ' + err.message }); } catch (e) {}
+  }
+  scanning = false;
 }
 
 // ─── BOT LOOP ────────────────────────────────────────────────
-let botInterval=null;
-async function startLoop(){
-  const cfg=await getConfig();
-  const sec=cfg?.cycle_seconds||60;
-  await addLog('info',`Bot started — scanning every ${sec}s | sandbox=${cfg?.sandbox}`);
-  await patchState({status_text:'Bot started'});
-  botInterval=setInterval(async()=>{
-    const state=await getState();
-    if(!state?.running){clearInterval(botInterval);botInterval=null;await addLog('info','Bot stopped');await patchState({status_text:'Stopped'});return;}
+let botInterval = null;
+async function startLoop() {
+  const cfg = await getConfig();
+  const sec = cfg?.cycle_seconds || 60;
+  await addLog('info', `Bot started — ${sec}s cycle | clearing=${CLEARING_DAYS===0?'DISABLED (testing)':'T+'+CLEARING_DAYS} | two-phase stop: fixed 1.2% → trail 0.5% after +1%`);
+  await patchState({ status_text: 'Bot started' });
+  botInterval = setInterval(async () => {
+    const state = await getState();
+    if (!state?.running) { clearInterval(botInterval); botInterval = null; await addLog('info', 'Bot stopped'); await patchState({ status_text: 'Stopped' }); return; }
     scanCycle();
-  },sec*1000);
+  }, sec * 1000);
   scanCycle();
 }
 
 // ─── ROUTES ──────────────────────────────────────────────────
-app.get('/',(req,res)=>res.json({status:'AutoTrader running',time:new Date().toISOString(),loopActive:!!botInterval}));
-app.get('/health',(req,res)=>res.json({ok:true}));
-app.post('/bot/start',async(req,res)=>{await patchState({running:true});if(!botInterval)await startLoop();res.json({ok:true});});
-app.post('/bot/stop',async(req,res)=>{await patchState({running:false});res.json({ok:true});});
-app.post('/screener/run',async(req,res)=>{res.json({ok:true});try{await runScreener();}catch(e){await addLog('err','Screener: '+e.message);}});
+app.get('/',       (req, res) => res.json({ status: 'AutoTrader running', time: new Date().toISOString(), loopActive: !!botInterval }));
+app.get('/health', (req, res) => res.json({ ok: true }));
+app.post('/bot/start',    async (req, res) => { await patchState({ running: true }); if (!botInterval) await startLoop(); res.json({ ok: true }); });
+app.post('/bot/stop',     async (req, res) => { await patchState({ running: false }); res.json({ ok: true }); });
+app.post('/screener/run', async (req, res) => { res.json({ ok: true }); try { await runScreener(); } catch (e) { await addLog('err', 'Screener: ' + e.message); } });
 
 // ─── STARTUP ─────────────────────────────────────────────────
-const PORT=process.env.PORT||3000;
-app.listen(PORT,async()=>{
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, async () => {
   console.log(`AutoTrader listening on port ${PORT}`);
   startScreenerScheduler();
-  try{const state=await getState();if(state?.running){console.log('Resuming bot...');await startLoop();}else console.log('Bot stopped — waiting for START');}
-  catch(e){console.error('Startup error:',e.message);}
+  try {
+    const state = await getState();
+    if (state?.running) { console.log('Resuming bot...'); await startLoop(); }
+    else console.log('Bot stopped — waiting for START');
+  } catch (e) { console.error('Startup error:', e.message); }
 });
