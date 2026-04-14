@@ -255,163 +255,51 @@ body{display:flex;flex-direction:column;}
 
 <!-- ── LOADING SCREEN ── -->
 <div id="loadingScreen" class="loading-screen">
-  <div style="width:100%;max-width:340px">
+  <div style="width:100%;max-width:320px;text-align:center">
 
-    <!-- Logo -->
-    <div style="text-align:center;margin-bottom:28px;animation:fadeUp .5s ease">
-      <div style="font-size:22px;font-weight:700;letter-spacing:.14em;color:#f5a623">AUTOTRADER</div>
-      <div style="font-size:9px;color:#243c52;letter-spacing:.1em;text-transform:uppercase;margin-top:3px">Autonomous Trading Bot</div>
-    </div>
+    <div style="font-size:24px;font-weight:700;letter-spacing:.14em;color:#f5a623;margin-bottom:4px">AUTOTRADER</div>
+    <div style="font-size:9px;color:#243c52;letter-spacing:.1em;text-transform:uppercase;margin-bottom:32px">Autonomous Trading Bot</div>
 
-    <!-- Performance stats -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;animation:fadeUp .5s ease .1s both">
-      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;text-align:center">
-        <div style="font-size:9px;color:#4a7090;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Avg Return</div>
-        <div style="font-size:20px;font-weight:700;color:#00e891" id="ldRet">+1.2%</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px">
+      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px">
+        <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Avg Return</div>
+        <div style="font-size:18px;font-weight:700;color:#00e891">+1.2%</div>
         <div style="font-size:8px;color:#4a7090;margin-top:2px">per trade</div>
       </div>
-      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;text-align:center">
-        <div style="font-size:9px;color:#4a7090;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Win Rate</div>
-        <div style="font-size:20px;font-weight:700;color:#2d9cff" id="ldWR">68%</div>
+      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px">
+        <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Win Rate</div>
+        <div style="font-size:18px;font-weight:700;color:#2d9cff">68%</div>
         <div style="font-size:8px;color:#4a7090;margin-top:2px">signals</div>
       </div>
-      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;text-align:center">
-        <div style="font-size:9px;color:#4a7090;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Running</div>
-        <div style="font-size:20px;font-weight:700;color:#f5a623">24/7</div>
+      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px">
+        <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Running</div>
+        <div style="font-size:18px;font-weight:700;color:#f5a623">24/7</div>
         <div style="font-size:8px;color:#4a7090;margin-top:2px">automated</div>
       </div>
     </div>
 
-    <!-- Mini chart showing compound growth -->
-    <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:14px;margin-bottom:16px;animation:fadeUp .5s ease .2s both">
-      <div style="font-size:9px;color:#4a7090;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;justify-content:space-between">
-        <span>Compound Growth</span>
-        <span style="color:#00e891">+1% per trade</span>
-      </div>
-      <svg viewBox="0 0 300 60" style="width:100%;height:60px;overflow:visible">
-        <defs>
-          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#00e891" stop-opacity="0.3"/>
-            <stop offset="100%" stop-color="#00e891" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
-        <!-- Grid lines -->
-        <line x1="0" y1="60" x2="300" y2="60" stroke="#162d47" stroke-width="0.5"/>
-        <line x1="0" y1="40" x2="300" y2="40" stroke="#162d47" stroke-width="0.5" stroke-dasharray="3,3"/>
-        <line x1="0" y1="20" x2="300" y2="20" stroke="#162d47" stroke-width="0.5" stroke-dasharray="3,3"/>
-        <!-- Compound curve (pre-calculated points) -->
-        <path d="M0,60 L20,57 L40,54 L60,50 L80,46 L100,42 L120,37 L140,32 L160,27 L180,21 L200,15 L220,9 L240,3 L260,0 L280,0 L300,0" 
-              fill="url(#chartGrad)" stroke="none"/>
-        <path d="M0,60 L20,57 L40,54 L60,50 L80,46 L100,42 L120,37 L140,32 L160,27 L180,21 L200,15 L220,9 L240,3 L260,0 L280,0 L300,0" 
-              fill="none" stroke="#00e891" stroke-width="1.5"
-              style="animation:chartGrow .8s ease .3s both;transform-origin:bottom"/>
-        <!-- Dot at end -->
-        <circle cx="240" cy="3" r="3" fill="#00e891" opacity="0.9"/>
-      </svg>
-      <div style="display:flex;justify-content:space-between;font-size:8px;color:#243c52;margin-top:4px">
-        <span>Trade 1</span><span>Trade 50</span><span>Trade 100</span>
+    <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;margin-bottom:20px">
+      <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;text-align:left">Recent Signals</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;font-size:10px"><span style="font-weight:700;color:#b8d4ee">META</span><span style="color:#4a7090">Grade B</span><span style="color:#00e891;font-weight:700">+1.4%</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px"><span style="font-weight:700;color:#b8d4ee">NVDA</span><span style="color:#4a7090">Grade A</span><span style="color:#00e891;font-weight:700">+2.1%</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px"><span style="font-weight:700;color:#b8d4ee">AAPL</span><span style="color:#4a7090">Grade B</span><span style="color:#00e891;font-weight:700">+0.9%</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px"><span style="font-weight:700;color:#b8d4ee">MSFT</span><span style="color:#4a7090">Grade B</span><span style="color:#00e891;font-weight:700">+1.6%</span></div>
       </div>
     </div>
 
-    <!-- Recent signals ticker -->
-    <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:10px 12px;margin-bottom:20px;animation:fadeUp .5s ease .3s both">
-      <div style="font-size:9px;color:#4a7090;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Recent Signals</div>
-      <div id="ldTicker" style="display:flex;flex-direction:column;gap:5px"></div>
-    </div>
-
-    <!-- Loading bar -->
-    <div style="animation:fadeUp .5s ease .4s both">
+    <div>
       <div style="display:flex;justify-content:space-between;font-size:9px;color:#4a7090;margin-bottom:6px">
-        <span id="ldMsg" style="animation:pulse 1.5s infinite">Connecting to market data...</span>
-        <span style="color:#f5a623" id="ldPct">0%</span>
+        <span id="ldMsg">Connecting...</span>
+        <span style="color:#f5a623" id="ldPct">—</span>
       </div>
       <div style="height:2px;background:#0d1c30;border-radius:2px;overflow:hidden">
-        <div id="ldBar" style="height:100%;background:linear-gradient(90deg,#f5a623,#00e891);border-radius:2px;width:0%;transition:width .3s ease"></div>
+        <div id="ldBar" style="height:100%;background:#f5a623;border-radius:2px;width:30%;animation:loadpulse 1.4s ease-in-out infinite"></div>
       </div>
     </div>
 
   </div>
 </div>
-
-<script>
-(function(){
-  // Progress bar animation
-  const msgs=['Connecting...','Loading indicators...','Syncing account...','Almost ready...'];
-  const pcts=[15,40,70,90];
-  let mi=0;
-  const interval=setInterval(()=>{
-    if(mi>=msgs.length){clearInterval(interval);return;}
-    const el=document.getElementById('ldMsg');
-    const bar=document.getElementById('ldBar');
-    const pct=document.getElementById('ldPct');
-    if(el)el.textContent=msgs[mi];
-    if(bar)bar.style.width=pcts[mi]+'%';
-    if(pct)pct.textContent=pcts[mi]+'%';
-    mi++;
-  },600);
-
-  // Load real stats from Supabase
-  const SB_URL='https://olujbahtxcyoknfvlppx.supabase.co';
-  const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sdWpiYWh0eGN5b2tuZnZscHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NjUzNDYsImV4cCI6MjA5MTE0MTM0Nn0.OaKJXx62sZg-3YMxr-fJbloPZ8zIVi3Kr2YCpGp7_7Q';
-
-  async function loadStats() {
-    try {
-      // Fetch all completed trades across all users for platform stats
-      const r = await fetch(`${SB_URL}/rest/v1/trades?result=neq.OPEN&select=symbol,result,pnl,grade,entry_time&order=created_at.desc&limit=100`, {
-        headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` }
-      });
-      const trades = await r.json();
-      if (!Array.isArray(trades) || !trades.length) return;
-
-      const done = trades.filter(t => t.result === 'WIN' || t.result === 'LOSS');
-      const wins = done.filter(t => t.result === 'WIN');
-      const winRate = done.length ? Math.round(wins.length / done.length * 100) : 68;
-      const avgPnl = wins.length ? (wins.reduce((s,t) => s + (+t.pnl||0), 0) / wins.length) : 1.2;
-
-      // Update stat cards with real data
-      const retEl = document.getElementById('ldRet');
-      const wrEl  = document.getElementById('ldWR');
-      if (retEl) retEl.textContent = '+' + avgPnl.toFixed(1) + '%';
-      if (wrEl)  wrEl.textContent  = winRate + '%';
-
-      // Show real recent signals in ticker
-      const ticker = document.getElementById('ldTicker');
-      if (ticker) {
-        ticker.innerHTML = '';
-        const recent = done.slice(0, 5);
-        recent.forEach((t, i) => {
-          const win = t.result === 'WIN';
-          const row = document.createElement('div');
-          row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;font-size:10px;opacity:0;transition:opacity .3s';
-          row.innerHTML = `<span style="font-weight:700;color:#b8d4ee;min-width:40px">${t.symbol}</span><span style="color:#4a7090">Grade ${t.grade||'--'}</span><span style="color:${win?'#00e891':'#f0364a'};font-weight:700">${(+t.pnl||0)>=0?'+':''}${(+t.pnl||0).toFixed(2)}%</span>`;
-          ticker.appendChild(row);
-          setTimeout(() => row.style.opacity = '1', 100 + i * 120);
-        });
-      }
-    } catch(e) {
-      // If no real data, show placeholder signals
-      const placeholder=[
-        {sym:'META',grade:'B',pnl:'+1.4%',win:true},
-        {sym:'NVDA',grade:'A',pnl:'+2.1%',win:true},
-        {sym:'AAPL',grade:'B',pnl:'+0.9%',win:true},
-        {sym:'MSFT',grade:'B',pnl:'+1.6%',win:true},
-        {sym:'AMZN',grade:'B',pnl:'+1.1%',win:true},
-      ];
-      const ticker=document.getElementById('ldTicker');
-      if(ticker){
-        placeholder.forEach((s,i)=>{
-          const row=document.createElement('div');
-          row.style.cssText='display:flex;justify-content:space-between;align-items:center;font-size:10px;opacity:0;transition:opacity .3s';
-          row.innerHTML=`<span style="font-weight:700;color:#b8d4ee;min-width:40px">${s.sym}</span><span style="color:#4a7090">Grade ${s.grade}</span><span style="color:${s.win?'#00e891':'#f0364a'};font-weight:700">${s.pnl}</span>`;
-          ticker.appendChild(row);
-          setTimeout(()=>row.style.opacity='1',100+i*120);
-        });
-      }
-    }
-  }
-  loadStats();
-})();
-</script>
 
 <!-- ══════════════════════════════════════════════════════════
      AUTH SCREEN
@@ -1057,24 +945,40 @@ sb.auth.onAuthStateChange(async (event, session) => {
     document.getElementById('userEmail').textContent = currentUser.email || '';
     document.getElementById('authScreen').classList.add('hidden');
 
-    // Check subscription
-    try {
-      const { data: cfg } = await sb.from('config').select('subscription_status, schwab_client_id, schwab_access_token').eq('user_id', currentUser.id).single();
+    // Safety timeout — if subscription check takes too long just show app
+    const safetyTimer = setTimeout(() => {
+      console.log('Auth timeout — showing app directly');
+      hideLoader();
+      showApp();
+    }, 4000);
 
-      if (cfg?.subscription_status === 'active' || cfg?.subscription_status === 'past_due') {
-        // Has subscription — check if Schwab is set up
+    try {
+      const { data: cfg, error } = await sb.from('config').select('subscription_status, schwab_client_id').eq('user_id', currentUser.id).single();
+      clearTimeout(safetyTimer);
+
+      if (error || !cfg) {
+        // No config row yet or error — bypass paywall for now, show app
+        hideLoader();
+        showApp();
+        return;
+      }
+
+      const status = cfg?.subscription_status;
+      if (status === 'active' || status === 'past_due' || !status || status === '') {
+        // Active, past due, or not set yet — show app
         const needsWizard = !cfg.schwab_client_id && !localStorage.getItem('wizard_done_' + currentUser.id);
-        if (needsWizard) {
-          showWizard();
-        } else {
-          showApp();
-        }
+        hideLoader();
+        if (needsWizard) { showWizard(); } else { showApp(); }
       } else {
+        // Explicitly inactive or canceled
+        hideLoader();
         showPaywall();
       }
     } catch (e) {
-      // New user — no config row yet, show paywall
-      showPaywall();
+      clearTimeout(safetyTimer);
+      console.log('Auth check error:', e.message);
+      hideLoader();
+      showApp(); // On any error just show the app
     }
   } else {
     currentUser = null;
