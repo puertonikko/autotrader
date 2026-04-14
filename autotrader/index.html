@@ -15,8 +15,10 @@
 <script>
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 OneSignalDeferred.push(async function(OneSignal) {
+  const appId = localStorage.getItem('os_app_id');
+  if (!appId) return;
   await OneSignal.init({
-    appId: '56648f83-a63b-457b-8f4e-22ba27b9d3b7',
+    appId,
     notifyButton: { enable: false },
     promptOptions: {
       slidedown: {
@@ -31,28 +33,102 @@ OneSignalDeferred.push(async function(OneSignal) {
 });
 </script>
 <style>
-:root{--bg0:#050a0f;--bg1:#091422;--bg2:#0d1c30;--bdr:#162d47;--bdr2:#1c3a59;--fg:#b8d4ee;--fg2:#4a7090;--fg3:#243c52;--grn:#00e891;--grnd:rgba(0,232,145,.1);--red:#f0364a;--redd:rgba(240,54,74,.1);--amb:#f5a623;--ambd:rgba(245,166,35,.1);--blu:#2d9cff;--pur:#9b8af5;--cyn:#00c8e0;--mono:"JetBrains Mono",monospace;--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px);}
+:root{
+  --bg0:#050a0f;--bg1:#091422;--bg2:#0d1c30;--bdr:#162d47;--bdr2:#1c3a59;
+  --fg:#b8d4ee;--fg2:#4a7090;--fg3:#243c52;
+  --grn:#00e891;--grnd:rgba(0,232,145,.1);
+  --red:#f0364a;--redd:rgba(240,54,74,.1);
+  --amb:#f5a623;--ambd:rgba(245,166,35,.1);
+  --blu:#2d9cff;--pur:#9b8af5;--cyn:#00c8e0;
+  --mono:"JetBrains Mono",monospace;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;height:-webkit-fill-available;background:var(--bg0);color:var(--fg);font-family:var(--mono);font-size:13px;overflow:hidden;}
 body{display:flex;flex-direction:column;}
 
-/* ── AUTH SCREEN ── */
-.auth-screen{position:fixed;inset:0;background:var(--bg0);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 24px;z-index:1000;}
-.auth-screen.hidden{display:none;}
-.auth-logo{font-size:24px;font-weight:700;letter-spacing:.14em;color:var(--amb);margin-bottom:6px;}
-.auth-sub{font-size:10px;color:var(--fg3);margin-bottom:36px;letter-spacing:.08em;}
-.auth-card{background:var(--bg1);border:1px solid var(--bdr);border-radius:10px;padding:24px;width:100%;max-width:360px;}
+/* ── FULL PAGE SCREENS ── */
+.screen{position:fixed;inset:0;background:var(--bg0);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;z-index:100;overflow-y:auto;}
+.screen.hidden{display:none;}
+.screen-logo{font-size:22px;font-weight:700;letter-spacing:.14em;color:var(--amb);margin-bottom:4px;}
+.screen-sub{font-size:10px;color:var(--fg3);margin-bottom:28px;letter-spacing:.08em;}
+.screen-card{background:var(--bg1);border:1px solid var(--bdr);border-radius:10px;padding:24px;width:100%;max-width:400px;}
+
+/* ── AUTH ── */
 .auth-tab-row{display:flex;gap:0;margin-bottom:20px;background:var(--bg2);border-radius:6px;padding:3px;}
 .auth-tab{flex:1;padding:8px;text-align:center;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--fg2);transition:all .15s;}
 .auth-tab.active{background:var(--bg0);color:var(--fg);}
-.auth-label{font-size:9px;color:var(--fg3);letter-spacing:.1em;text-transform:uppercase;margin:12px 0 4px;}
-.auth-input{width:100%;background:var(--bg0);border:1px solid var(--bdr2);border-radius:5px;padding:12px;color:var(--fg);font-family:var(--mono);font-size:14px;outline:none;-webkit-appearance:none;}
-.auth-input:focus{border-color:var(--amb);}
-.auth-btn{width:100%;background:var(--grn);color:#050a0f;border:none;border-radius:6px;padding:14px;font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;margin-top:16px;letter-spacing:.06em;}
-.auth-btn:active{filter:brightness(.9);}
-.auth-err{font-size:10px;color:var(--red);margin-top:10px;text-align:center;min-height:16px;}
-.auth-note{font-size:9px;color:var(--fg3);text-align:center;margin-top:14px;line-height:1.6;}
-.auth-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:20px;color:var(--fg2);font-size:11px;}
+.field-label{font-size:9px;color:var(--fg3);letter-spacing:.1em;text-transform:uppercase;margin:10px 0 4px;}
+.field{width:100%;background:var(--bg0);border:1px solid var(--bdr2);border-radius:5px;padding:11px 12px;color:var(--fg);font-family:var(--mono);font-size:14px;outline:none;-webkit-appearance:none;}
+.field:focus{border-color:var(--amb);}
+.field-note{font-size:9px;color:var(--fg3);margin-top:4px;line-height:1.6;}
+.btn-primary{width:100%;background:var(--grn);color:#050a0f;border:none;border-radius:6px;padding:14px;font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;margin-top:14px;letter-spacing:.06em;}
+.btn-primary:active{filter:brightness(.9);}
+.btn-secondary{width:100%;background:var(--bg2);color:var(--fg2);border:1px solid var(--bdr2);border-radius:6px;padding:12px;font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;margin-top:8px;}
+.err{font-size:10px;color:var(--red);margin-top:8px;text-align:center;min-height:16px;}
+.note{font-size:9px;color:var(--fg3);text-align:center;margin-top:12px;line-height:1.7;}
+
+/* ── PAYWALL ── */
+.price-big{text-align:center;margin-bottom:20px;}
+.price-big .amt{font-size:48px;font-weight:700;color:var(--grn);}
+.price-big .per{font-size:11px;color:var(--fg3);letter-spacing:.1em;text-transform:uppercase;margin-top:2px;}
+.feature-list{font-size:11px;color:var(--fg2);line-height:2.2;margin-bottom:20px;}
+.feature-list div::before{content:'✓  ';color:var(--grn);}
+
+/* ── WIZARD ── */
+.wizard-overlay{position:fixed;inset:0;background:var(--bg0);z-index:200;display:flex;flex-direction:column;overflow:hidden;}
+.wizard-overlay.hidden{display:none;}
+.wizard-hdr{padding:calc(12px + var(--safe-t)) 16px 12px;background:var(--bg1);border-bottom:1px solid var(--bdr);flex-shrink:0;}
+.wizard-title{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--amb);text-transform:uppercase;}
+.wizard-subtitle{font-size:10px;color:var(--fg2);margin-top:3px;}
+.wizard-progress{display:flex;gap:4px;margin-top:10px;}
+.wizard-dot{flex:1;height:3px;border-radius:2px;background:var(--bdr2);transition:background .3s;}
+.wizard-dot.done{background:var(--grn);}
+.wizard-dot.active{background:var(--amb);}
+.wizard-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 16px;}
+.wizard-footer{padding:12px 16px calc(12px + var(--safe-b));background:var(--bg1);border-top:1px solid var(--bdr);flex-shrink:0;display:flex;gap:8px;}
+.wizard-footer .btn-primary{margin-top:0;flex:1;}
+.wizard-footer .btn-back{background:var(--bg2);color:var(--fg2);border:1px solid var(--bdr2);border-radius:6px;padding:14px;font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;min-width:80px;}
+
+/* Wizard step content */
+.step{display:none;}
+.step.active{display:block;}
+.step-num{display:inline-block;background:var(--amb);color:#050a0f;width:22px;height:22px;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:700;margin-right:8px;flex-shrink:0;}
+.step-heading{display:flex;align-items:center;margin-bottom:14px;}
+.step-heading h2{font-size:14px;font-weight:700;color:var(--fg);}
+.step-text{font-size:12px;color:var(--fg2);line-height:1.8;margin-bottom:14px;}
+.step-highlight{background:var(--ambd);border:1px solid rgba(245,166,35,.3);border-radius:6px;padding:12px 14px;margin:12px 0;font-size:11px;color:var(--amb);line-height:1.7;}
+.step-success{background:var(--grnd);border:1px solid rgba(0,232,145,.3);border-radius:6px;padding:12px 14px;margin:12px 0;font-size:11px;color:var(--grn);line-height:1.7;}
+.step-code{background:var(--bg0);border:1px solid var(--bdr2);border-radius:5px;padding:10px 12px;font-size:12px;color:var(--cyn);margin:8px 0;word-break:break-all;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.copy-btn{background:var(--bg2);border:1px solid var(--bdr2);color:var(--fg2);padding:4px 10px;border-radius:4px;font-family:var(--mono);font-size:9px;cursor:pointer;flex-shrink:0;white-space:nowrap;}
+.copy-btn:active{background:var(--grn);color:#050a0f;}
+
+/* Screenshot placeholder */
+.screenshot{background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;margin:14px 0;overflow:hidden;}
+.screenshot img{width:100%;display:block;}
+.screenshot-placeholder{padding:40px 20px;text-align:center;color:var(--fg3);font-size:10px;line-height:1.8;}
+.screenshot-label{background:var(--bg1);border-top:1px solid var(--bdr);padding:8px 12px;font-size:9px;color:var(--fg3);letter-spacing:.08em;}
+
+/* Instruction rows */
+.instr{display:flex;gap:12px;margin:10px 0;align-items:flex-start;}
+.instr-num{background:var(--blu);color:#fff;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px;}
+.instr-text{font-size:12px;color:var(--fg2);line-height:1.7;flex:1;}
+.instr-text strong{color:var(--fg);}
+
+/* Connect button */
+.schwab-connect-btn{width:100%;background:linear-gradient(135deg,#00a9e0,#0078a5);color:#fff;border:none;border-radius:8px;padding:16px;font-family:var(--mono);font-size:14px;font-weight:700;cursor:pointer;margin:14px 0;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:.04em;}
+.schwab-connect-btn:active{filter:brightness(.9);}
+.schwab-connect-btn .schwab-s{font-size:20px;font-weight:900;}
+.connected-badge{background:var(--grnd);border:1px solid rgba(0,232,145,.3);border-radius:8px;padding:14px;text-align:center;margin:14px 0;}
+.connected-badge .ck{font-size:24px;}
+.connected-badge p{color:var(--grn);font-size:13px;font-weight:700;margin-top:4px;}
+.connected-badge small{color:var(--fg3);font-size:10px;}
+
+/* Waiting state */
+.waiting-box{background:var(--ambd);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:16px;margin:14px 0;text-align:center;}
+.waiting-box p{color:var(--amb);font-size:12px;line-height:1.8;}
+.waiting-box .days{font-size:32px;font-weight:700;color:var(--amb);margin:8px 0;}
 
 /* ── MAIN APP ── */
 .app-screen{display:none;flex-direction:column;height:100%;height:-webkit-fill-available;}
@@ -64,15 +140,11 @@ body{display:flex;flex-direction:column;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 .running .dot{animation:blink 1.4s infinite;}
 .stxt{font-size:10px;color:var(--fg2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.user-email{font-size:9px;color:var(--fg3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.user-email{font-size:9px;color:var(--fg3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .badge{font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;}
 .badge-sb{background:var(--ambd);color:var(--amb);}
 .badge-live{background:var(--redd);color:var(--red);}
-.btn{padding:5px 12px;border-radius:5px;border:none;cursor:pointer;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.06em;transition:all .15s;min-height:34px;}
-.btn-s{background:var(--grn);color:#050a0f;}
-.btn-x{background:var(--red);color:#fff;}
-.btn-g{background:var(--bg2);color:var(--fg2);border:1px solid var(--bdr2);}
-.btn-out{background:none;border:1px solid var(--bdr2);color:var(--fg3);padding:4px 8px;border-radius:4px;font-family:var(--mono);font-size:9px;cursor:pointer;}
+.btn-out{background:none;border:1px solid var(--bdr2);color:var(--fg3);padding:4px 8px;border-radius:4px;font-family:var(--mono);font-size:9px;cursor:pointer;margin-left:4px;}
 .pages{flex:1;overflow:hidden;position:relative;}
 .page{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;padding-bottom:8px;}
 .page.active{display:block;}
@@ -102,18 +174,6 @@ body{display:flex;flex-direction:column;}
 .er{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(22,45,71,.5);}
 .er:last-child{border-bottom:none;}
 .ek{color:var(--fg3);}
-.wi{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid rgba(22,45,71,.5);}
-.wi:last-child{border-bottom:none;}
-.wi.active{background:rgba(45,156,255,.08);}
-.wtk{font-weight:700;min-width:44px;font-size:12px;}
-.wpx{font-size:12px;min-width:60px;}
-.wch{font-size:10px;min-width:52px;text-align:right;}
-.wst{font-size:8px;color:var(--fg2);flex:1;text-align:right;}
-.wsc{font-size:11px;font-weight:700;min-width:24px;text-align:right;}
-.bull{color:var(--grn);}
-.bear{color:var(--red);}
-.neu{color:var(--fg2);}
-.amb{color:var(--amb);}
 .cr{display:flex;align-items:center;gap:8px;padding:5px 0;}
 .cn{width:46px;font-size:9px;color:var(--fg2);text-transform:uppercase;}
 .cbw{flex:1;background:var(--bg0);border-radius:2px;height:5px;overflow:hidden;}
@@ -130,7 +190,6 @@ body{display:flex;flex-direction:column;}
 .lb-skip{background:rgba(36,60,82,.5);color:var(--fg3);}
 .lb-info{background:rgba(155,138,245,.1);color:var(--pur);}
 .lb-err{background:var(--redd);color:var(--red);}
-.lb-api{background:rgba(45,156,255,.1);color:var(--blu);}
 .lb-warn{background:var(--ambd);color:var(--amb);}
 .lm{color:var(--fg);flex:1;word-break:break-word;}
 .tr{display:grid;grid-template-columns:44px 38px 66px 62px 1fr;gap:4px;padding:8px 12px;border-bottom:1px solid rgba(22,45,71,.4);font-size:10px;align-items:center;}
@@ -140,106 +199,427 @@ body{display:flex;flex-direction:column;}
 .cmpv{font-size:15px;font-weight:700;}
 .cmpl{font-size:8px;color:var(--fg3);margin-top:2px;letter-spacing:.05em;text-transform:uppercase;}
 .start-row{display:flex;gap:8px;padding:12px;}
-.start-row .btn{flex:1;min-height:48px;font-size:13px;border-radius:8px;}
-.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999;align-items:flex-end;justify-content:center;}
-.mbg.open{display:flex;}
-.mbox{background:var(--bg1);border:1px solid var(--bdr2);border-radius:16px 16px 0 0;padding:20px 20px calc(20px + var(--safe-b));width:100%;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-.mbox h2{font-size:11px;color:var(--amb);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px;}
-.mlbl{font-size:9px;color:var(--fg2);letter-spacing:.1em;text-transform:uppercase;margin:10px 0 4px;}
-.mi{width:100%;background:var(--bg0);border:1px solid var(--bdr2);border-radius:5px;padding:10px 12px;color:var(--fg);font-family:var(--mono);font-size:13px;outline:none;-webkit-appearance:none;margin-bottom:1px;}
-.mi:focus{border-color:var(--amb);}
-.mnote{font-size:10px;color:var(--fg2);background:var(--ambd);border:1px solid rgba(245,166,35,.2);border-radius:5px;padding:10px 12px;margin:10px 0;line-height:1.65;}
-.msec{font-size:9px;font-weight:700;color:var(--fg2);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 4px;padding-top:14px;border-top:1px solid var(--bdr);}
-.mrow{display:flex;gap:8px;margin-top:14px;}
-.mrow .btn{flex:1;min-height:44px;font-size:12px;}
-.drag-handle{width:40px;height:4px;background:var(--bdr2);border-radius:2px;margin:0 auto 16px;}
+.start-row .btn-primary{margin-top:0;flex:1;min-height:48px;font-size:13px;border-radius:8px;}
+.btn-stop{background:var(--red);color:#fff;border:none;border-radius:8px;padding:14px;font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;flex:1;}
+.btn-cfg{background:var(--bg2);color:var(--fg2);border:1px solid var(--bdr2);border-radius:8px;padding:14px;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;min-width:80px;}
 .scrcard{background:var(--bg0);border:1px solid var(--bdr);border-radius:5px;padding:8px 10px;font-size:9px;}
 .scr-r{display:flex;justify-content:space-between;padding:3px 0;}
 .scr-k{color:var(--fg3);}
+.bull{color:var(--grn);}
+.bear{color:var(--red);}
+.neu{color:var(--fg2);}
+.amb{color:var(--amb);}
+
+/* Config modal */
+.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;align-items:flex-end;justify-content:center;}
+.mbg.open{display:flex;}
+.mbox{background:var(--bg1);border:1px solid var(--bdr2);border-radius:16px 16px 0 0;padding:20px 20px calc(20px + var(--safe-b));width:100%;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.mbox h2{font-size:11px;color:var(--amb);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px;}
+.mi{width:100%;background:var(--bg0);border:1px solid var(--bdr2);border-radius:5px;padding:10px 12px;color:var(--fg);font-family:var(--mono);font-size:13px;outline:none;-webkit-appearance:none;margin-bottom:1px;}
+.mi:focus{border-color:var(--amb);}
+.msec{font-size:9px;font-weight:700;color:var(--fg2);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 4px;padding-top:14px;border-top:1px solid var(--bdr);}
+.mlbl{font-size:9px;color:var(--fg2);letter-spacing:.1em;text-transform:uppercase;margin:10px 0 4px;}
+.mrow{display:flex;gap:8px;margin-top:14px;}
+.mrow button{flex:1;min-height:44px;font-size:12px;}
+.drag-handle{width:40px;height:4px;background:var(--bdr2);border-radius:2px;margin:0 auto 16px;}
+.schwab-auth-btn{width:100%;background:linear-gradient(135deg,#00a9e0,#0078a5);color:#fff;border:none;border-radius:6px;padding:12px;font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;margin-top:8px;}
+
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px;}
+
 @media(min-width:900px){
   .pages{display:grid;grid-template-columns:250px 1fr 270px;height:calc(100vh - 52px);}
   .page{position:static;display:block !important;overflow-y:auto;border-right:1px solid var(--bdr);}
   .page:last-child{border-right:none;}
   .tabnav{display:none;}
+  .screen-card{max-width:420px;}
+  .wizard-body{max-width:600px;margin:0 auto;width:100%;}
   .mbg{align-items:center;}
-  .mbox{border-radius:10px;width:480px;max-width:92vw;padding:24px;}
+  .mbox{border-radius:10px;width:500px;max-width:92vw;padding:24px;}
   .drag-handle{display:none;}
-  .auth-card{max-width:400px;}
 }
 </style>
 </head>
 <body>
 
-<!-- ── AUTH SCREEN ── -->
-<div class="auth-screen" id="authScreen">
-  <div class="auth-logo">AUTOTRADER</div>
-  <div class="auth-sub">AUTONOMOUS TRADING BOT</div>
-  <div class="auth-card">
+<!-- ══════════════════════════════════════════════════════════
+     AUTH SCREEN
+══════════════════════════════════════════════════════════ -->
+<div class="screen" id="authScreen">
+  <div class="screen-logo">AUTOTRADER</div>
+  <div class="screen-sub">AUTONOMOUS TRADING BOT</div>
+  <div class="screen-card">
     <div class="auth-tab-row">
       <div class="auth-tab active" id="tabLogin" onclick="showLogin()">SIGN IN</div>
       <div class="auth-tab" id="tabSignup" onclick="showSignup()">REGISTER</div>
     </div>
-
-    <!-- Login form -->
     <div id="loginForm">
-      <div class="auth-label">Email</div>
-      <input class="auth-input" type="email" id="loginEmail" placeholder="you@email.com" autocomplete="email"/>
-      <div class="auth-label">Password</div>
-      <input class="auth-input" type="password" id="loginPass" placeholder="Password" autocomplete="current-password"/>
-      <button class="auth-btn" onclick="doLogin()">SIGN IN</button>
-      <div class="auth-err" id="loginErr"></div>
-      <div class="auth-note">Your data syncs across all devices automatically.</div>
+      <div class="field-label">Email</div>
+      <input class="field" type="email" id="loginEmail" placeholder="you@email.com" autocomplete="email"/>
+      <div class="field-label">Password</div>
+      <input class="field" type="password" id="loginPass" placeholder="Password" autocomplete="current-password"/>
+      <button class="btn-primary" onclick="doLogin()">SIGN IN</button>
+      <div class="err" id="loginErr"></div>
+      <div class="note">Your data syncs across all devices automatically.</div>
     </div>
-
-    <!-- Signup form -->
     <div id="signupForm" style="display:none">
-      <div class="auth-label">Email</div>
-      <input class="auth-input" type="email" id="signupEmail" placeholder="you@email.com" autocomplete="email"/>
-      <div class="auth-label">Password</div>
-      <input class="auth-input" type="password" id="signupPass" placeholder="Min 6 characters" autocomplete="new-password"/>
-      <div class="auth-label">Confirm Password</div>
-      <input class="auth-input" type="password" id="signupPass2" placeholder="Confirm password" autocomplete="new-password"/>
-      <button class="auth-btn" onclick="doSignup()">CREATE ACCOUNT</button>
-      <div class="auth-err" id="signupErr"></div>
-      <div class="auth-note">Check your email to confirm your account after registering.</div>
+      <div class="field-label">Email</div>
+      <input class="field" type="email" id="signupEmail" placeholder="you@email.com" autocomplete="email"/>
+      <div class="field-label">Password</div>
+      <input class="field" type="password" id="signupPass" placeholder="Min 6 characters" autocomplete="new-password"/>
+      <div class="field-label">Confirm Password</div>
+      <input class="field" type="password" id="signupPass2" placeholder="Confirm password" autocomplete="new-password"/>
+      <button class="btn-primary" onclick="doSignup()">CREATE ACCOUNT</button>
+      <div class="err" id="signupErr"></div>
+      <div class="note">Check your email to confirm your account after registering.</div>
     </div>
   </div>
 </div>
 
-<!-- ── MAIN APP ── -->
+<!-- ══════════════════════════════════════════════════════════
+     PAYWALL SCREEN
+══════════════════════════════════════════════════════════ -->
+<div class="screen hidden" id="paywallScreen">
+  <div class="screen-logo">AUTOTRADER</div>
+  <div class="screen-sub">AUTONOMOUS TRADING BOT</div>
+  <div class="screen-card">
+    <div class="price-big">
+      <div class="amt">$20</div>
+      <div class="per">per month · cancel anytime</div>
+    </div>
+    <div class="feature-list">
+      <div>Autonomous bot running 24/7</div>
+      <div>Premarket gap screener daily</div>
+      <div>Claude AI signal grading</div>
+      <div>Two-phase trailing stop loss</div>
+      <div>Real-time push notifications</div>
+      <div>Charles Schwab integration</div>
+      <div>Your own market data (no limits)</div>
+    </div>
+    <button class="btn-primary" onclick="startCheckout()" id="payBtn">PAY $20 — GET STARTED</button>
+    <div class="err" id="payErr"></div>
+    <div class="note">Secure payment via Stripe. Billed monthly.</div>
+    <div style="text-align:center;margin-top:10px">
+      <button onclick="doLogout()" style="background:none;border:none;color:var(--fg3);font-family:var(--mono);font-size:9px;cursor:pointer;text-decoration:underline">Sign out</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SETUP WIZARD
+══════════════════════════════════════════════════════════ -->
+<div class="wizard-overlay hidden" id="wizardScreen">
+  <div class="wizard-hdr">
+    <div class="wizard-title">Schwab Setup Wizard</div>
+    <div class="wizard-subtitle" id="wizStep">Step 1 of 6 — Create your Schwab Developer App</div>
+    <div class="wizard-progress" id="wizProgress">
+      <div class="wizard-dot active" id="wd0"></div>
+      <div class="wizard-dot" id="wd1"></div>
+      <div class="wizard-dot" id="wd2"></div>
+      <div class="wizard-dot" id="wd3"></div>
+      <div class="wizard-dot" id="wd4"></div>
+      <div class="wizard-dot" id="wd5"></div>
+    </div>
+  </div>
+
+  <div class="wizard-body">
+
+    <!-- STEP 0: Welcome -->
+    <div class="step active" id="ws0">
+      <div style="text-align:center;padding:10px 0 20px">
+        <div style="font-size:48px;margin-bottom:12px">🚀</div>
+        <div style="font-size:18px;font-weight:700;color:var(--fg);margin-bottom:8px">Welcome to AutoTrader!</div>
+        <div style="font-size:12px;color:var(--fg2);line-height:1.8">Your subscription is active. Now let's connect your Charles Schwab account so the bot can trade for you.</div>
+      </div>
+      <div class="step-highlight">
+        This wizard takes about <strong>5 minutes</strong> to complete. You will need to visit the Schwab developer portal and come back here with two keys.
+      </div>
+      <div style="font-size:12px;color:var(--fg2);line-height:2;margin-top:14px">
+        <div style="margin-bottom:6px">📋 <strong style="color:var(--fg)">What you'll do:</strong></div>
+        <div>1. Create a free Schwab developer app</div>
+        <div>2. Copy your API credentials</div>
+        <div>3. Submit app for approval (1-2 business days)</div>
+        <div>4. Once approved — connect with one tap</div>
+        <div>5. Bot starts trading your account</div>
+      </div>
+      <div style="font-size:11px;color:var(--fg3);margin-top:16px;line-height:1.7;background:var(--bg2);border-radius:6px;padding:12px">
+        Already have Schwab developer credentials? Skip ahead using the "I already have credentials" option on step 3.
+      </div>
+    </div>
+
+    <!-- STEP 1: Go to developer.schwab.com -->
+    <div class="step" id="ws1">
+      <div class="step-heading">
+        <span class="step-num">1</span>
+        <h2>Go to Schwab Developer Portal</h2>
+      </div>
+      <div class="step-text">Open the Schwab developer portal in your browser. You will need to log in with your regular Schwab account credentials.</div>
+
+      <div class="screenshot">
+        <div class="screenshot-placeholder">
+          📸 Screenshot: developer.schwab.com homepage<br>
+          <span style="font-size:9px;color:var(--fg3)">(image will appear here)</span>
+        </div>
+        <div class="screenshot-label">developer.schwab.com — Sign in with your Schwab account</div>
+      </div>
+
+      <div class="instr">
+        <div class="instr-num">1</div>
+        <div class="instr-text">Tap the button below to open <strong>developer.schwab.com</strong></div>
+      </div>
+      <div class="instr">
+        <div class="instr-num">2</div>
+        <div class="instr-text">Click <strong>Sign In</strong> in the top right corner</div>
+      </div>
+      <div class="instr">
+        <div class="instr-num">3</div>
+        <div class="instr-text">Log in with your <strong>regular Schwab username and password</strong></div>
+      </div>
+
+      <a href="https://developer.schwab.com" target="_blank" style="display:block;background:var(--bg2);border:1px solid var(--bdr2);color:var(--blu);padding:14px;border-radius:6px;text-align:center;text-decoration:none;font-weight:700;font-size:13px;margin-top:14px">
+        Open developer.schwab.com →
+      </a>
+    </div>
+
+    <!-- STEP 2: Create App -->
+    <div class="step" id="ws2">
+      <div class="step-heading">
+        <span class="step-num">2</span>
+        <h2>Create Your App</h2>
+      </div>
+      <div class="step-text">Once logged in, create a new app. This gives you the API keys the bot needs to access your account.</div>
+
+      <div class="screenshot">
+        <div class="screenshot-placeholder">
+          📸 Screenshot: Schwab developer dashboard<br>showing "Create App" button
+        </div>
+        <div class="screenshot-label">Click "Create App" or "Add App" in your dashboard</div>
+      </div>
+
+      <div class="instr">
+        <div class="instr-num">1</div>
+        <div class="instr-text">Click <strong>Apps</strong> in the top navigation</div>
+      </div>
+      <div class="instr">
+        <div class="instr-num">2</div>
+        <div class="instr-text">Click <strong>Create App</strong> or the <strong>+</strong> button</div>
+      </div>
+      <div class="instr">
+        <div class="instr-num">3</div>
+        <div class="instr-text">Enter <strong>App Name:</strong> AutoTrader AI</div>
+      </div>
+      <div class="instr">
+        <div class="instr-num">4</div>
+        <div class="instr-text">For <strong>Callback URL</strong> — copy and paste this exactly:</div>
+      </div>
+
+      <div class="step-code">
+        <span id="callbackUrl">https://autotrader-production-5b5d.up.railway.app/schwab/callback</span>
+        <button class="copy-btn" onclick="copyCallback()">COPY</button>
+      </div>
+
+      <div class="instr">
+        <div class="instr-num">5</div>
+        <div class="instr-text">Select <strong>Individual</strong> as the account type</div>
+      </div>
+      <div class="instr">
+        <div class="instr-num">6</div>
+        <div class="instr-text">Click <strong>Submit</strong> or <strong>Create</strong></div>
+      </div>
+
+      <div class="screenshot">
+        <div class="screenshot-placeholder">
+          📸 Screenshot: Create App form filled out<br>showing the fields and callback URL
+        </div>
+        <div class="screenshot-label">Fill in the form exactly as shown</div>
+      </div>
+    </div>
+
+    <!-- STEP 3: Copy credentials -->
+    <div class="step" id="ws3">
+      <div class="step-heading">
+        <span class="step-num">3</span>
+        <h2>Copy Your API Credentials</h2>
+      </div>
+      <div class="step-text">After creating your app, Schwab gives you two keys. Enter them here — they save automatically to your account.</div>
+
+      <div class="screenshot">
+        <div class="screenshot-placeholder">
+          📸 Screenshot: App details page showing<br>Client ID and Client Secret fields
+        </div>
+        <div class="screenshot-label">Copy both keys from your app details page</div>
+      </div>
+
+      <div class="step-highlight">
+        Find your <strong>Client ID</strong> and <strong>Client Secret</strong> on your app's detail page. The Client Secret may need to be revealed by clicking a show/eye icon.
+      </div>
+
+      <div class="field-label">Schwab Client ID</div>
+      <input class="field" type="text" id="wClientId" placeholder="Your Client ID from Schwab" autocomplete="off" autocorrect="off" spellcheck="false" oninput="wizardAutoSave()"/>
+
+      <div class="field-label">Schwab Client Secret</div>
+      <input class="field" type="password" id="wClientSecret" placeholder="Your Client Secret from Schwab" autocomplete="off" oninput="wizardAutoSave()"/>
+
+      <div id="wizSaveStatus" style="font-size:10px;color:var(--fg3);margin-top:8px;text-align:center;min-height:16px"></div>
+
+      <div class="screenshot">
+        <div class="screenshot-placeholder">
+          📸 Screenshot: Where to find Client ID<br>and Client Secret on Schwab portal
+        </div>
+        <div class="screenshot-label">Your keys look similar to these examples</div>
+      </div>
+    </div>
+
+    <!-- STEP 4: Wait for approval -->
+    <div class="step" id="ws4">
+      <div class="step-heading">
+        <span class="step-num">4</span>
+        <h2>Submit & Wait for Approval</h2>
+      </div>
+      <div class="step-text">Schwab reviews all developer applications before activating API access. This is a one-time process.</div>
+
+      <div class="waiting-box">
+        <div class="days">1-2</div>
+        <p>Business days for Schwab to approve your application</p>
+      </div>
+
+      <div class="instr">
+        <div class="instr-num">1</div>
+        <div class="instr-text">Make sure you clicked <strong>Submit</strong> on your app in the Schwab portal</div>
+      </div>
+      <div class="instr">
+        <div class="instr-num">2</div>
+        <div class="instr-text">Schwab will email you at your account email when approved</div>
+      </div>
+      <div class="instr">
+        <div class="instr-num">3</div>
+        <div class="instr-text">Come back to this app and tap <strong>Connect Schwab</strong> on the next step</div>
+      </div>
+
+      <div class="step-highlight">
+        💡 While waiting — the bot can still run in <strong>sandbox mode</strong>, scanning real market data and making real decisions. It just won't place actual orders until Schwab is connected.
+      </div>
+
+      <div style="margin-top:14px">
+        <button class="btn-secondary" onclick="skipToApp()">Run in Sandbox While I Wait</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: Connect Schwab -->
+    <div class="step" id="ws5">
+      <div class="step-heading">
+        <span class="step-num">5</span>
+        <h2>Connect Your Schwab Account</h2>
+      </div>
+      <div class="step-text">Now that Schwab has approved your app, tap the button below to authorize AutoTrader on your account. This only needs to be done once.</div>
+
+      <div class="screenshot">
+        <div class="screenshot-placeholder">
+          📸 Screenshot: Schwab OAuth authorization page<br>showing AutoTrader requesting permission
+        </div>
+        <div class="screenshot-label">You will see this Schwab authorization screen</div>
+      </div>
+
+      <div id="schwabConnectArea">
+        <button class="schwab-connect-btn" onclick="connectSchwab()">
+          <span class="schwab-s">S</span>
+          Connect Charles Schwab Account
+        </button>
+        <div style="font-size:10px;color:var(--fg3);text-align:center;line-height:1.7;margin-top:6px">
+          Tapping this opens Schwab's secure login page.<br>
+          After approving, you will return here automatically.<br>
+          Tokens refresh automatically — no daily PIN ever needed.
+        </div>
+      </div>
+
+      <div id="schwabConnectedArea" style="display:none">
+        <div class="connected-badge">
+          <div class="ck">✅</div>
+          <p>Schwab Connected!</p>
+          <small id="schwabAccountInfo">Account linked successfully</small>
+        </div>
+        <div class="step-success">
+          Your Charles Schwab account is now connected. The bot will use your real account balance and place real trades.
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 6: All done -->
+    <div class="step" id="ws6">
+      <div style="text-align:center;padding:16px 0 24px">
+        <div style="font-size:56px;margin-bottom:14px">🎉</div>
+        <div style="font-size:20px;font-weight:700;color:var(--grn);margin-bottom:8px">You're all set!</div>
+        <div style="font-size:12px;color:var(--fg2);line-height:1.9">AutoTrader is ready to trade your Schwab account autonomously.</div>
+      </div>
+
+      <div class="step-success">
+        <strong>What happens next:</strong><br>
+        • Every morning at 9 AM ET the screener finds gap-up stocks<br>
+        • Bot scans your watchlist every 60 seconds during market hours<br>
+        • Claude AI grades each signal before any trade<br>
+        • You get a push notification for every buy, sell, win, and loss<br>
+        • Trailing stop locks in profits above +1%
+      </div>
+
+      <div style="margin-top:16px;font-size:11px;color:var(--fg3);line-height:1.8;background:var(--bg2);border-radius:6px;padding:12px">
+        💡 Tip: You can adjust your watchlist, position size, and risk settings anytime from the CONFIG button in the app.
+      </div>
+    </div>
+
+  </div><!-- /wizard-body -->
+
+  <div class="wizard-footer">
+    <button class="wizard-footer btn-back" id="wizBackBtn" onclick="wizBack()" style="display:none">← Back</button>
+    <button class="btn-primary" id="wizNextBtn" onclick="wizNext()">Get Started →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════════════════════ -->
 <div class="app-screen" id="appScreen">
 
   <!-- CONFIG MODAL -->
   <div class="mbg" id="cfgModal">
   <div class="mbox">
     <div class="drag-handle"></div>
-    <h2>Bot Configuration</h2>
-    <div class="mnote">These settings are saved to your account and sync across all your devices automatically.</div>
+    <h2>Configuration</h2>
 
     <div class="msec">Bot Server</div>
     <div class="mlbl">Railway Bot URL</div>
     <input class="mi" type="text" id="cRail" placeholder="https://autotrader-xxx.up.railway.app" autocomplete="off"/>
 
-    <div class="msec">Market Data</div>
-    <div class="mlbl">Twelve Data API Key</div>
-    <input class="mi" type="password" id="cTD" placeholder="your_twelvedata_key" autocomplete="off"/>
-    <div class="mlbl">Anthropic API Key (Claude grader)</div>
-    <input class="mi" type="password" id="cAnt" placeholder="sk-ant-api03-..." autocomplete="off"/>
+    <div class="msec">Broker</div>
+    <div class="mlbl">Active Broker</div>
+    <select class="mi" id="cBroker">
+      <option value="etrade">E*Trade (sandbox testing)</option>
+      <option value="schwab">Charles Schwab (live trading)</option>
+    </select>
 
-    <div class="msec">E*Trade</div>
+    <div class="msec">Charles Schwab</div>
+    <button class="schwab-auth-btn" onclick="openSchwabAuth()">Connect / Reconnect Schwab Account →</button>
+    <div class="mlbl">Client ID</div>
+    <input class="mi" type="text" id="cSchwabId" placeholder="Your Schwab Client ID" autocomplete="off"/>
+    <div class="mlbl">Client Secret</div>
+    <input class="mi" type="password" id="cSchwabSecret" placeholder="Your Schwab Client Secret" autocomplete="off"/>
+    <div class="mlbl">Account Hash (auto-filled after connect)</div>
+    <input class="mi" type="text" id="cSchwabHash" placeholder="Auto-filled after OAuth" autocomplete="off" readonly/>
+
+    <div class="msec">E*Trade (Legacy)</div>
+    <button style="width:100%;background:var(--ambd);border:1px solid rgba(245,166,35,.3);color:var(--amb);padding:10px;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer;margin-bottom:4px" onclick="openETradeAuth()">Authorize E*Trade →</button>
     <div class="mlbl">Consumer Key</div>
     <input class="mi" type="text" id="cEK" autocomplete="off"/>
     <div class="mlbl">Consumer Secret</div>
     <input class="mi" type="password" id="cES" autocomplete="off"/>
-    <div class="mlbl">Access Token (auto-filled by OAuth)</div>
-    <input class="mi" type="text" id="cAT" autocomplete="off" placeholder="Filled after /etrade/auth"/>
-    <div class="mlbl">Token Secret (auto-filled by OAuth)</div>
-    <input class="mi" type="password" id="cAS" autocomplete="off" placeholder="Filled after /etrade/auth"/>
-    <div class="mlbl">Account ID Key</div>
+    <div class="mlbl">Account ID</div>
     <input class="mi" type="text" id="cAcc" autocomplete="off"/>
+
+    <div class="msec">Market Data</div>
+    <div class="mlbl">Twelve Data API Key (E*Trade users only)</div>
+    <input class="mi" type="password" id="cTD" placeholder="Not needed for Schwab users" autocomplete="off"/>
+    <div class="mlbl">Anthropic API Key (Claude grader)</div>
+    <input class="mi" type="password" id="cAnt" placeholder="sk-ant-api03-..." autocomplete="off"/>
 
     <div class="msec">Trading Rules</div>
     <div class="mlbl">Candle Interval</div>
@@ -261,7 +641,7 @@ body{display:flex;flex-direction:column;}
 
     <div class="msec">Screener</div>
     <div class="mlbl">Screener enabled</div>
-    <select class="mi" id="cScrOn"><option value="1" selected>Yes — auto-populate watchlist at 9 AM ET</option><option value="0">No — manual watchlist only</option></select>
+    <select class="mi" id="cScrOn"><option value="1" selected>Yes — auto watchlist at 9 AM ET</option><option value="0">No — manual watchlist only</option></select>
     <div class="mlbl">Min gap % to qualify</div>
     <input class="mi" type="number" id="cScrGap" value="1.5" step="0.5"/>
     <div class="mlbl">Min price ($)</div>
@@ -275,6 +655,11 @@ body{display:flex;flex-direction:column;}
     <div class="mlbl">Universe (all candidate tickers)</div>
     <textarea class="mi" id="cScrUni" rows="3" style="resize:vertical;line-height:1.5">AAPL,MSFT,NVDA,TSLA,AMZN,GOOGL,META,AMD,JPM,SPY,QQQ,NFLX,BABA,DIS,PYPL,SQ,ROKU,COIN,HOOD,PLTR,SOFI,RIVN,NIO,F,GM,BA,CAT,GE,XOM,CVX,WFC,BAC,GS,V,MA,COST,WMT,TGT,HD,MCD,SBUX,NKE,CRM,ADBE,SNOW,DDOG,NET,CRWD,PANW,MRNA,BNTX,PFE,JNJ,ABBV,UNH,CVS</textarea>
 
+    <div class="msec">Email Notifications</div>
+    <div class="mlbl">Notification Email Address</div>
+    <input class="mi" type="email" id="cNotifEmail" placeholder="Leave blank to use your account email" autocomplete="off"/>
+    <div style="font-size:9px;color:var(--fg3);margin-bottom:8px;line-height:1.6">You will receive emails for every buy, sell, win and loss. Defaults to your login email if left blank.</div>
+
     <div class="msec">Push Notifications (OneSignal)</div>
     <div class="mlbl">OneSignal App ID</div>
     <input class="mi" type="text" id="cOSAppId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off"/>
@@ -282,8 +667,8 @@ body{display:flex;flex-direction:column;}
     <input class="mi" type="password" id="cOSKey" placeholder="REST API key" autocomplete="off"/>
 
     <div class="mrow">
-      <button class="btn btn-s" onclick="saveConfig()">SAVE</button>
-      <button class="btn btn-g" onclick="closeCfg()">CANCEL</button>
+      <button class="btn-primary" style="margin-top:0" onclick="saveConfig()">SAVE</button>
+      <button class="btn-secondary" style="margin-top:0" onclick="closeCfg()">CANCEL</button>
     </div>
   </div>
   </div>
@@ -295,16 +680,15 @@ body{display:flex;flex-direction:column;}
     <span class="stxt" id="stxt">Loading...</span>
     <span class="user-email" id="userEmail"></span>
     <span id="modeBadge" class="badge badge-sb" style="margin-left:4px">SB</span>
-    <button class="btn-out" onclick="doLogout()" style="margin-left:6px">OUT</button>
+    <button class="btn-out" onclick="doLogout()">OUT</button>
   </div>
 
   <div class="pages">
-
     <!-- STATUS TAB -->
     <div class="page active" id="pg0">
       <div class="start-row">
-        <button class="btn btn-s" id="startBtn" onclick="toggleBot()">START BOT</button>
-        <button class="btn btn-g" onclick="openCfg()">CONFIG</button>
+        <button class="btn-primary" id="startBtn" onclick="toggleBot()" style="margin-top:0;min-height:48px;font-size:13px;border-radius:8px">START BOT</button>
+        <button class="btn-cfg" onclick="openCfg()">CONFIG</button>
       </div>
       <div class="card">
         <div class="card-hd">Bot State <span id="lastSync" style="color:var(--fg3);font-size:8px"></span></div>
@@ -334,13 +718,15 @@ body{display:flex;flex-direction:column;}
         <div class="card-bd">
           <div class="ep">
             <div class="er"><span class="ek">Bot server</span><span id="epSrv" style="color:var(--fg2)">--</span></div>
+            <div class="er"><span class="ek">Broker</span><span id="epBroker" style="color:var(--fg2)">--</span></div>
+            <div class="er"><span class="ek">Schwab</span><span id="epSchwab" style="color:var(--fg2)">--</span></div>
             <div class="er"><span class="ek">Clearing</span><span id="epClr" style="color:var(--grn)">--</span></div>
             <div class="er"><span class="ek">Open position</span><span id="epOpn" style="color:var(--fg2)">None</span></div>
             <div class="er"><span class="ek">Mode</span><span id="epSand" style="color:var(--amb)">--</span></div>
-            <div class="er"><span class="ek">E*Trade</span><span id="epEtrade" style="color:var(--fg2)">--</span></div>
             <div class="er"><span class="ek">Last action</span><span id="epLst" style="color:var(--fg2)">--</span></div>
           </div>
-          <button onclick="openETradeAuth()" style="width:100%;margin-top:10px;padding:10px;background:var(--ambd);border:1px solid rgba(245,166,35,.3);border-radius:5px;color:var(--amb);font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer">AUTHORIZE E*TRADE</button>
+          <button onclick="openSchwabAuth()" style="width:100%;margin-top:10px;padding:10px;background:linear-gradient(135deg,rgba(0,169,224,.15),rgba(0,120,165,.15));border:1px solid rgba(0,169,224,.3);border-radius:5px;color:#00a9e0;font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer">CONNECT / RECONNECT SCHWAB</button>
+          <button onclick="openETradeAuth()" style="width:100%;margin-top:6px;padding:8px;background:var(--ambd);border:1px solid rgba(245,166,35,.3);border-radius:5px;color:var(--amb);font-family:var(--mono);font-size:9px;font-weight:700;cursor:pointer">AUTHORIZE E*TRADE (LEGACY)</button>
         </div>
       </div>
       <div class="card">
@@ -414,7 +800,6 @@ body{display:flex;flex-direction:column;}
         <div id="logEl"><div style="padding:16px;text-align:center;font-size:10px;color:var(--fg3)">Start bot to see activity.</div></div>
       </div>
     </div>
-
   </div>
 
   <nav class="tabnav">
@@ -431,136 +816,264 @@ body{display:flex;flex-direction:column;}
       <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>LOG
     </button>
   </nav>
-
-</div><!-- /app-screen -->
+</div>
 
 <script>
-// ─── SUPABASE INIT ───────────────────────────────────────────
-const SB_URL  = 'https://olujbahtxcyoknfvlppx.supabase.co';
-const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sdWpiYWh0eGN5b2tuZnZscHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NjUzNDYsImV4cCI6MjA5MTE0MTM0Nn0.OaKJXx62sZg-3YMxr-fJbloPZ8zIVi3Kr2YCpGp7_7Q'; // your anon key
-const RAILWAY = localStorage.getItem('railway_url') || '';
+// ─── CONFIG ───────────────────────────────────────────────────
+const SB_URL      = 'https://olujbahtxcyoknfvlppx.supabase.co';
+const SB_ANON     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sdWpiYWh0eGN5b2tuZnZscHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NjUzNDYsImV4cCI6MjA5MTE0MTM0Nn0.OaKJXx62sZg-3YMxr-fJbloPZ8zIVi3Kr2YCpGp7_7Q';
+const RAILWAY_URL = 'https://autotrader-production-5b5d.up.railway.app';
 
-// Initialize Supabase client with Auth
 const { createClient } = supabase;
 const sb = createClient(SB_URL, SB_ANON);
 
 let currentUser = null;
 let refreshInterval = null;
+let wizardStep = 0;
+const WIZARD_STEPS = 6;
 
-// ─── AUTH ────────────────────────────────────────────────────
-function showLogin() {
-  document.getElementById('loginForm').style.display='block';
-  document.getElementById('signupForm').style.display='none';
-  document.getElementById('tabLogin').classList.add('active');
-  document.getElementById('tabSignup').classList.remove('active');
-}
-function showSignup() {
-  document.getElementById('signupForm').style.display='block';
-  document.getElementById('loginForm').style.display='none';
-  document.getElementById('tabSignup').classList.add('active');
-  document.getElementById('tabLogin').classList.remove('active');
-}
+// ─── AUTH ─────────────────────────────────────────────────────
+function showLogin() { document.getElementById('loginForm').style.display='block'; document.getElementById('signupForm').style.display='none'; document.getElementById('tabLogin').classList.add('active'); document.getElementById('tabSignup').classList.remove('active'); }
+function showSignup() { document.getElementById('signupForm').style.display='block'; document.getElementById('loginForm').style.display='none'; document.getElementById('tabSignup').classList.add('active'); document.getElementById('tabLogin').classList.remove('active'); }
 
 async function doLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
-  const pass  = document.getElementById('loginPass').value;
-  document.getElementById('loginErr').textContent = '';
-  if (!email || !pass) { document.getElementById('loginErr').textContent = 'Enter email and password'; return; }
-  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
-  if (error) { document.getElementById('loginErr').textContent = error.message; return; }
-  // onAuthStateChange handles the rest
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass=document.getElementById('loginPass').value;
+  document.getElementById('loginErr').textContent='';
+  if(!email||!pass){document.getElementById('loginErr').textContent='Enter email and password';return;}
+  const{error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error)document.getElementById('loginErr').textContent=error.message;
 }
 
 async function doSignup() {
-  const email = document.getElementById('signupEmail').value.trim();
-  const pass  = document.getElementById('signupPass').value;
-  const pass2 = document.getElementById('signupPass2').value;
-  document.getElementById('signupErr').textContent = '';
-  if (!email || !pass) { document.getElementById('signupErr').textContent = 'Enter email and password'; return; }
-  if (pass !== pass2)  { document.getElementById('signupErr').textContent = 'Passwords do not match'; return; }
-  if (pass.length < 6) { document.getElementById('signupErr').textContent = 'Password must be at least 6 characters'; return; }
-  const { error } = await sb.auth.signUp({ email, password: pass });
-  if (error) { document.getElementById('signupErr').textContent = error.message; return; }
-  document.getElementById('signupErr').style.color = 'var(--grn)';
-  document.getElementById('signupErr').textContent = 'Check your email to confirm your account!';
+  const email=document.getElementById('signupEmail').value.trim();
+  const pass=document.getElementById('signupPass').value;
+  const pass2=document.getElementById('signupPass2').value;
+  document.getElementById('signupErr').textContent='';
+  if(!email||!pass){document.getElementById('signupErr').textContent='Enter email and password';return;}
+  if(pass!==pass2){document.getElementById('signupErr').textContent='Passwords do not match';return;}
+  if(pass.length<6){document.getElementById('signupErr').textContent='Password must be 6+ characters';return;}
+  const{error}=await sb.auth.signUp({email,password:pass});
+  if(error){document.getElementById('signupErr').textContent=error.message;return;}
+  document.getElementById('signupErr').style.color='var(--grn)';
+  document.getElementById('signupErr').textContent='Check your email to confirm your account!';
 }
 
 async function doLogout() {
+  document.getElementById('paywallScreen').classList.add('hidden');
+  document.getElementById('wizardScreen').classList.add('hidden');
   await sb.auth.signOut();
-  // onAuthStateChange handles the redirect back to login
 }
 
-// Listen for auth state changes
-sb.auth.onAuthStateChange((event, session) => {
+// ─── AUTH STATE ───────────────────────────────────────────────
+sb.auth.onAuthStateChange(async (event, session) => {
   if (session?.user) {
     currentUser = session.user;
-    showApp();
+    document.getElementById('userEmail').textContent = currentUser.email || '';
+    document.getElementById('authScreen').classList.add('hidden');
+
+    // Check subscription
+    try {
+      const { data: cfg } = await sb.from('config').select('subscription_status, schwab_client_id, schwab_access_token').eq('user_id', currentUser.id).single();
+
+      if (cfg?.subscription_status === 'active' || cfg?.subscription_status === 'past_due') {
+        // Has subscription — check if Schwab is set up
+        const needsWizard = !cfg.schwab_client_id && !localStorage.getItem('wizard_done_' + currentUser.id);
+        if (needsWizard) {
+          showWizard();
+        } else {
+          showApp();
+        }
+      } else {
+        showPaywall();
+      }
+    } catch (e) {
+      // New user — no config row yet, show paywall
+      showPaywall();
+    }
   } else {
     currentUser = null;
-    showAuthScreen();
+    document.getElementById('paywallScreen').classList.add('hidden');
+    document.getElementById('wizardScreen').classList.add('hidden');
+    document.getElementById('appScreen').classList.remove('visible');
+    document.getElementById('authScreen').classList.remove('hidden');
+    if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
   }
 });
 
+// ─── SCREEN ROUTING ───────────────────────────────────────────
+function showPaywall() {
+  document.getElementById('paywallScreen').classList.remove('hidden');
+  document.getElementById('wizardScreen').classList.add('hidden');
+  document.getElementById('appScreen').classList.remove('visible');
+}
+
+function showWizard() {
+  document.getElementById('paywallScreen').classList.add('hidden');
+  document.getElementById('wizardScreen').classList.remove('hidden');
+  document.getElementById('appScreen').classList.remove('visible');
+  wizardStep = 0;
+  updateWizardUI();
+}
+
 function showApp() {
-  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('paywallScreen').classList.add('hidden');
+  document.getElementById('wizardScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.add('visible');
-  document.getElementById('userEmail').textContent = currentUser?.email || '';
   startRefresh();
 }
 
-function showAuthScreen() {
-  document.getElementById('authScreen').classList.remove('hidden');
-  document.getElementById('appScreen').classList.remove('visible');
-  if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
+function skipToApp() {
+  localStorage.setItem('wizard_done_' + currentUser.id, '1');
+  showApp();
 }
 
-// ─── DATA ACCESS (uses Supabase Auth session automatically) ──
-async function getState() {
-  const { data } = await sb.from('bot_state').select('*').eq('user_id', currentUser.id).single();
-  return data;
-}
-async function getConfig() {
-  const { data } = await sb.from('config').select('*').eq('user_id', currentUser.id).single();
-  return data;
-}
-async function getTrades() {
-  const { data } = await sb.from('trades').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(60);
-  return data;
-}
-async function getLogs() {
-  const { data } = await sb.from('activity_log').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(100);
-  return data;
-}
-async function patchState(d) {
-  await sb.from('bot_state').update({ ...d, updated_at: new Date().toISOString() }).eq('user_id', currentUser.id);
-}
-async function patchConfig(d) {
-  await sb.from('config').update({ ...d, updated_at: new Date().toISOString() }).eq('user_id', currentUser.id);
-}
-
-// ─── BOT CONTROL ─────────────────────────────────────────────
-async function toggleBot() {
-  const state = await getState();
-  if (!state) return;
-  const next = !state.running;
-  await patchState({ running: next });
-  const railUrl = localStorage.getItem('railway_url') || '';
-  if (railUrl) {
-    try { await fetch(railUrl + (next ? '/bot/start' : '/bot/stop'), { method: 'POST' }); } catch(e) {}
+// ─── STRIPE ───────────────────────────────────────────────────
+async function startCheckout() {
+  if (!currentUser) return;
+  const btn = document.getElementById('payBtn');
+  btn.textContent = 'Redirecting to Stripe...';
+  btn.disabled = true;
+  document.getElementById('payErr').textContent = '';
+  try {
+    const r = await fetch(RAILWAY_URL + '/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: currentUser.email, userId: currentUser.id })
+    });
+    const j = await r.json();
+    if (j.ok && j.url) {
+      window.location.href = j.url;
+    } else {
+      document.getElementById('payErr').textContent = j.error || 'Payment error — try again';
+      btn.textContent = 'PAY $20 — GET STARTED';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    document.getElementById('payErr').textContent = 'Network error — try again';
+    btn.textContent = 'PAY $20 — GET STARTED';
+    btn.disabled = false;
   }
-  setTimeout(refreshAll, 1000);
 }
 
-function openETradeAuth() {
-  const railUrl = localStorage.getItem('railway_url') || '';
-  if (!railUrl) { alert('Add Railway Bot URL in CONFIG first'); return; }
-  window.open(railUrl + '/etrade/auth', '_blank');
+// ─── WIZARD ───────────────────────────────────────────────────
+const WIZARD_LABELS = [
+  'Welcome',
+  'Step 1 of 5 — Go to Schwab Developer Portal',
+  'Step 2 of 5 — Create Your App',
+  'Step 3 of 5 — Copy Your Credentials',
+  'Step 4 of 5 — Wait for Approval',
+  'Step 5 of 5 — Connect Your Account',
+  'All Done!'
+];
+
+function updateWizardUI() {
+  // Update step panels
+  for (let i = 0; i <= 5; i++) {
+    const panel = document.getElementById('ws' + i);
+    if (panel) panel.classList.toggle('active', i === wizardStep);
+  }
+  // Update progress dots
+  for (let i = 0; i < WIZARD_STEPS; i++) {
+    const dot = document.getElementById('wd' + i);
+    if (!dot) continue;
+    dot.classList.remove('done', 'active');
+    if (i < wizardStep) dot.classList.add('done');
+    else if (i === wizardStep) dot.classList.add('active');
+  }
+  // Update subtitle
+  document.getElementById('wizStep').textContent = WIZARD_LABELS[wizardStep] || '';
+  // Update buttons
+  const backBtn = document.getElementById('wizBackBtn');
+  const nextBtn = document.getElementById('wizNextBtn');
+  backBtn.style.display = wizardStep > 0 ? 'block' : 'none';
+  if (wizardStep === 0) nextBtn.textContent = 'Get Started →';
+  else if (wizardStep === 4) nextBtn.textContent = 'My App is Submitted →';
+  else if (wizardStep === 5) nextBtn.textContent = 'Finish →';
+  else if (wizardStep === 6 || wizardStep >= WIZARD_STEPS) nextBtn.textContent = 'Go to Dashboard →';
+  else nextBtn.textContent = 'Next →';
 }
 
-async function runScreener() {
-  const railUrl = localStorage.getItem('railway_url') || '';
-  if (!railUrl) { alert('Add Railway Bot URL in CONFIG first'); return; }
-  try { await fetch(railUrl + '/screener/run', { method: 'POST' }); setStatus('Screener started...'); } catch(e) {}
+function wizNext() {
+  if (wizardStep >= WIZARD_STEPS) {
+    localStorage.setItem('wizard_done_' + currentUser.id, '1');
+    showApp();
+    return;
+  }
+  wizardStep++;
+  updateWizardUI();
+}
+
+function wizBack() {
+  if (wizardStep <= 0) return;
+  wizardStep--;
+  updateWizardUI();
+}
+
+function copyCallback() {
+  const url = document.getElementById('callbackUrl').textContent;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = event.target;
+    btn.textContent = 'COPIED!';
+    btn.style.background = 'var(--grn)';
+    btn.style.color = '#050a0f';
+    setTimeout(() => { btn.textContent = 'COPY'; btn.style.background = ''; btn.style.color = ''; }, 2000);
+  }).catch(() => {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+}
+
+// Auto-save credentials as user types in wizard
+let wizSaveTimer = null;
+async function wizardAutoSave() {
+  const clientId = document.getElementById('wClientId').value.trim();
+  const clientSecret = document.getElementById('wClientSecret').value.trim();
+  if (!clientId && !clientSecret) return;
+
+  clearTimeout(wizSaveTimer);
+  document.getElementById('wizSaveStatus').textContent = 'Saving...';
+
+  wizSaveTimer = setTimeout(async () => {
+    try {
+      await sb.from('config').update({
+        schwab_client_id:     clientId,
+        schwab_client_secret: clientSecret,
+        updated_at:           new Date().toISOString()
+      }).eq('user_id', currentUser.id);
+      document.getElementById('wizSaveStatus').textContent = '✓ Saved automatically';
+      document.getElementById('wizSaveStatus').style.color = 'var(--grn)';
+      setTimeout(() => { document.getElementById('wizSaveStatus').textContent = ''; }, 3000);
+    } catch (e) {
+      document.getElementById('wizSaveStatus').textContent = 'Save failed — check connection';
+      document.getElementById('wizSaveStatus').style.color = 'var(--red)';
+    }
+  }, 800);
+}
+
+function connectSchwab() {
+  window.open(RAILWAY_URL + '/schwab/auth', '_blank');
+  // Poll for connection
+  const poll = setInterval(async () => {
+    try {
+      const { data: cfg } = await sb.from('config').select('schwab_access_token, schwab_account_hash').eq('user_id', currentUser.id).single();
+      if (cfg?.schwab_access_token) {
+        clearInterval(poll);
+        document.getElementById('schwabConnectArea').style.display = 'none';
+        document.getElementById('schwabConnectedArea').style.display = 'block';
+        if (cfg.schwab_account_hash) {
+          document.getElementById('schwabAccountInfo').textContent = 'Account hash: ' + cfg.schwab_account_hash.substring(0, 12) + '...';
+        }
+      }
+    } catch (e) {}
+  }, 3000);
+  // Stop polling after 5 minutes
+  setTimeout(() => clearInterval(poll), 5 * 60 * 1000);
 }
 
 // ─── TAB NAV ─────────────────────────────────────────────────
@@ -569,15 +1082,33 @@ function switchTab(i) {
   document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────
-function bizAdd(d,n){let r=new Date(d),c=0;while(c<n){r.setDate(r.getDate()+1);if(r.getDay()!==0&&r.getDay()!==6)c++;}return r;}
-const clearOk=lt=>!lt||new Date()>=bizAdd(new Date(lt),3);
-function nextTrade(lt){if(!lt)return'Now';const d=bizAdd(new Date(lt),3);return d<=new Date()?'Now':d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
-function setStatus(m){document.getElementById('stxt').textContent=m;}
+// ─── BOT CONTROL ─────────────────────────────────────────────
+async function toggleBot() {
+  const { data: state } = await sb.from('bot_state').select('running').eq('user_id', currentUser.id).single();
+  if (!state) return;
+  const next = !state.running;
+  await sb.from('bot_state').update({ running: next }).eq('user_id', currentUser.id);
+  try { await fetch(RAILWAY_URL + (next ? '/bot/start' : '/bot/stop'), { method: 'POST' }); } catch(e) {}
+  setTimeout(refreshAll, 1000);
+}
+
+function openSchwabAuth() { window.open(RAILWAY_URL + '/schwab/auth', '_blank'); }
+function openETradeAuth() { window.open(RAILWAY_URL + '/etrade/auth', '_blank'); }
+
+async function runScreener() {
+  try { await fetch(RAILWAY_URL + '/screener/run', { method: 'POST' }); setStatus('Screener started...'); } catch(e) {}
+}
+
+// ─── DATA ─────────────────────────────────────────────────────
+const getState  = () => sb.from('bot_state').select('*').eq('user_id', currentUser.id).single().then(r => r.data);
+const getConfig = () => sb.from('config').select('*').eq('user_id', currentUser.id).single().then(r => r.data);
+const getTrades = () => sb.from('trades').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(60).then(r => r.data);
+const getLogs   = () => sb.from('activity_log').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(100).then(r => r.data);
 
 // ─── REFRESH ─────────────────────────────────────────────────
 function startRefresh() {
   refreshAll();
+  if (refreshInterval) clearInterval(refreshInterval);
   refreshInterval = setInterval(refreshAll, 5000);
 }
 
@@ -597,8 +1128,13 @@ async function refreshAll() {
 }
 
 // ─── RENDERERS ───────────────────────────────────────────────
+function bizAdd(d,n){let r=new Date(d),c=0;while(c<n){r.setDate(r.getDate()+1);if(r.getDay()!==0&&r.getDay()!==6)c++;}return r;}
+const clearOk=lt=>!lt||new Date()>=bizAdd(new Date(lt),1);
+function nextTrade(lt){if(!lt)return'Now';const d=bizAdd(new Date(lt),1);return d<=new Date()?'Now':d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function setStatus(m){document.getElementById('stxt').textContent=m;}
+
 function renderState(state, cfg, trades) {
-  if (!state||!cfg) return;
+  if(!state||!cfg)return;
   const start=cfg.capital||10000, bal=state.balance||start;
   const done=(trades||[]).filter(t=>t.result!=='OPEN');
   const wins=done.filter(t=>t.result==='WIN').length;
@@ -626,62 +1162,56 @@ function renderState(state, cfg, trades) {
   de.className='cmpv '+(delta>=0?'bull':'bear');
 
   const running=state.running;
+  const broker=cfg.broker||'etrade';
   document.getElementById('dotEl').className='dot'+(running?' live':'');
   document.getElementById('hdrEl').className='hdr'+(running?' running':'');
-  document.getElementById('startBtn').textContent=running?'STOP BOT':'START BOT';
-  document.getElementById('startBtn').className='btn '+(running?'btn-x':'btn-s');
+  const sb2=document.getElementById('startBtn');
+  sb2.textContent=running?'STOP BOT':'START BOT';
+  sb2.className=running?'btn-stop':'btn-primary';
+  sb2.style.marginTop='0';
   document.getElementById('modeBadge').textContent=cfg.sandbox?'SB':'LIVE';
   document.getElementById('modeBadge').className='badge '+(cfg.sandbox?'badge-sb':'badge-live');
   setStatus(state.status_text||(running?'Running...':'Stopped'));
 
   document.getElementById('epSrv').textContent=running?'Running':'Stopped';
   document.getElementById('epSrv').style.color=running?'var(--grn)':'var(--fg2)';
+  document.getElementById('epBroker').textContent=broker==='schwab'?'Charles Schwab':'E*Trade';
+  document.getElementById('epBroker').style.color=broker==='schwab'?'var(--blu)':'var(--amb)';
+  document.getElementById('epSchwab').textContent=cfg.schwab_access_token?'Connected ✓':'Not connected';
+  document.getElementById('epSchwab').style.color=cfg.schwab_access_token?'var(--grn)':'var(--fg3)';
   const ce=document.getElementById('epClr');
-  ce.textContent=clearOk(state.last_trade_date)?'CLEAR':'LOCKED '+nextTrade(state.last_trade_date);
+  ce.textContent=clearOk(state.last_trade_date)?'CLEAR (T+1)':'LOCKED '+nextTrade(state.last_trade_date);
   ce.style.color=clearOk(state.last_trade_date)?'var(--grn)':'var(--amb)';
   document.getElementById('epOpn').textContent=state.open_trade?`${state.open_trade.symbol} ${state.open_trade.shares}sh @ $${state.open_trade.entry_price?.toFixed(2)}`:'None';
-  document.getElementById('epSand').textContent=cfg.sandbox?'Sandbox — no real orders':'LIVE TRADING';
+  document.getElementById('epSand').textContent=cfg.sandbox?'Sandbox':'LIVE TRADING';
   document.getElementById('epSand').style.color=cfg.sandbox?'var(--amb)':'var(--red)';
-  document.getElementById('epEtrade').textContent=cfg.e_token?'Connected':'Not authorized';
-  document.getElementById('epEtrade').style.color=cfg.e_token?'var(--grn)':'var(--amb)';
   document.getElementById('epLst').textContent=state.status_text||'--';
 }
 
 function renderAnalysis(state) {
-  const a=state?.last_analysis; if(!a)return;
+  const a=state?.last_analysis;if(!a)return;
   document.getElementById('curTk').textContent=a.symbol||'--';
   document.getElementById('curPx').textContent=a.px?'$'+(+a.px).toFixed(2):'';
   const sigs=a.sigs||{};
-  [['RSI',a.rsiV?.toFixed(2)||'--','iv-rsi','is-rsi'],
-   ['MACD',a.mlV?.toFixed(3)||'--','iv-macd','is-macd'],
-   ['BB',(a.bbPct||'--')+'%','iv-bb','is-bb'],
-   ['VWAP','$'+(a.vwap?.toFixed(2)||'--'),'iv-vwap','is-vwap'],
-   ['SMA','$'+(a.s20?.toFixed(2)||'--'),'iv-sma','is-sma'],
-   ['EMA','$'+(a.e1?.toFixed(2)||'--'),'iv-ema','is-ema'],
-  ].forEach(([k,v,vi,si])=>{
+  [['RSI',a.rsiV?.toFixed(2)||'--','iv-rsi','is-rsi'],['MACD',a.mlV?.toFixed(3)||'--','iv-macd','is-macd'],['BB',(a.bbPct||'--')+'%','iv-bb','is-bb'],['VWAP','$'+(a.vwap?.toFixed(2)||'--'),'iv-vwap','is-vwap'],['SMA','$'+(a.s20?.toFixed(2)||'--'),'iv-sma','is-sma'],['EMA','$'+(a.e1?.toFixed(2)||'--'),'iv-ema','is-ema']].forEach(([k,v,vi,si])=>{
     const s=sigs[k],cl=s?.bull===true?'bull':s?.bull===false?'bear':'neu';
-    document.getElementById(vi).textContent=v;
-    document.getElementById(vi).className='iv '+cl;
-    document.getElementById(si).textContent=s?.label||'--';
-    document.getElementById(si).className='is '+cl;
+    document.getElementById(vi).textContent=v;document.getElementById(vi).className='iv '+cl;
+    document.getElementById(si).textContent=s?.label||'--';document.getElementById(si).className='is '+cl;
   });
   const comp=a.comp||50;
   const col=comp>=65?'var(--grn)':comp<=35?'var(--red)':'var(--amb)';
   document.getElementById('compB').style.cssText=`width:${comp}%;background:${col}`;
-  document.getElementById('compN').textContent=comp;
-  document.getElementById('compN').style.color=col;
+  document.getElementById('compN').textContent=comp;document.getElementById('compN').style.color=col;
   document.getElementById('compL').textContent=comp>=70?'Strong buy signal':comp>=60?'Moderate buy':comp<=30?'Strong sell':comp<=40?'Moderate sell':'Neutral';
-  if(a.symbol){
-    document.getElementById('wlEl').innerHTML=`<div class="wi fresh"><span class="wtk">${a.symbol}</span><span class="wpx">${a.px?'$'+(+a.px).toFixed(2):'--'}</span><span class="wch neu">last scan</span><span class="wst"></span><span class="wsc ${comp>=65?'bull':comp<=35?'bear':'amb'}">${comp}</span></div>`;
-  }
+  if(a.symbol)document.getElementById('wlEl').innerHTML=`<div style="display:flex;align-items:center;gap:6px;padding:10px 12px"><span style="font-weight:700;min-width:44px;font-size:12px">${a.symbol}</span><span style="font-size:12px">${a.px?'$'+(+a.px).toFixed(2):'--'}</span><span style="flex:1"></span><span style="font-size:11px;font-weight:700;color:${comp>=65?'var(--grn)':comp<=35?'var(--red)':'var(--amb)'}">${comp}</span></div>`;
 }
 
 function renderGrade(state) {
-  const gr=state?.last_grade; if(!gr)return;
+  const gr=state?.last_grade;if(!gr)return;
   const gc={A:'var(--grn)',B:'var(--blu)',C:'var(--amb)',D:'var(--pur)',F:'var(--red)'};
   const ac={BUY:'var(--grn)',SELL:'var(--red)',HOLD:'var(--amb)'};
   const ds=document.getElementById('dSig');
-  ds.textContent=gr.action||'HOLD'; ds.style.color=ac[gr.action]||'var(--fg2)';
+  ds.textContent=gr.action||'HOLD';ds.style.color=ac[gr.action]||'var(--fg2)';
   const dg=document.getElementById('dGr');
   dg.textContent=`Grade: ${gr.grade}  Score: ${gr.score}/100  Conf: ${gr.confidence}%`;
   dg.style.color=gc[gr.grade]||'var(--fg)';
@@ -699,112 +1229,112 @@ function renderScreener(cfg) {
   if(!cfg)return;
   document.getElementById('scrStat').textContent=cfg.screener_enabled?'Enabled':'Disabled';
   document.getElementById('scrStat').style.color=cfg.screener_enabled?'var(--grn)':'var(--fg3)';
-  if(cfg.screener_last_run){
-    const d=new Date(cfg.screener_last_run);
-    document.getElementById('scrRun').textContent=d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit'});
-  }
+  if(cfg.screener_last_run){const d=new Date(cfg.screener_last_run);document.getElementById('scrRun').textContent=d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit'});}
   if(cfg.screener_last_picks)document.getElementById('scrPicks').textContent=cfg.screener_last_picks;
 }
 
 function renderTrades(trades) {
   const el=document.getElementById('tradeEl');
   if(!trades?.length){el.innerHTML='<div style="padding:16px;text-align:center;font-size:10px;color:var(--fg3)">No trades yet.</div>';return;}
-  el.innerHTML=trades.map(t=>
-    `<div class="tr"><span style="font-weight:700">${t.symbol}</span><span class="${t.result==='WIN'?'bull':t.result==='LOSS'?'bear':'neu'}">${t.result}</span><span>$${(+t.entry_price||0).toFixed(2)}</span><span class="${(+t.pnl||0)>=0?'bull':'bear'}">${(+t.pnl||0)>=0?'+':''}${(+t.pnl||0).toFixed(2)}%</span><span style="color:var(--fg3);font-size:8px">${new Date(t.entry_time).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span></div>`
-  ).join('');
+  el.innerHTML=trades.map(t=>`<div class="tr"><span style="font-weight:700">${t.symbol}</span><span class="${t.result==='WIN'?'bull':t.result==='LOSS'?'bear':'neu'}">${t.result}</span><span>$${(+t.entry_price||0).toFixed(2)}</span><span class="${(+t.pnl||0)>=0?'bull':'bear'}">${(+t.pnl||0)>=0?'+':''}${(+t.pnl||0).toFixed(2)}%</span><span style="color:var(--fg3);font-size:8px">${new Date(t.entry_time).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span></div>`).join('');
 }
 
 function renderLogs(logs) {
   const el=document.getElementById('logEl');
   if(!logs?.length){el.innerHTML='<div style="padding:16px;text-align:center;font-size:10px;color:var(--fg3)">No activity yet.</div>';return;}
-  el.innerHTML=logs.map(l=>{
-    const t=new Date(l.created_at).toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    return `<div class="lr"><span class="lt">${t}</span><span class="lb lb-${l.type}">${l.type.toUpperCase()}</span><span class="lm">${l.message}</span></div>`;
-  }).join('');
+  el.innerHTML=logs.map(l=>{const t=new Date(l.created_at).toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});return`<div class="lr"><span class="lt">${t}</span><span class="lb lb-${l.type}">${l.type.toUpperCase()}</span><span class="lm">${l.message}</span></div>`;}).join('');
   document.getElementById('logCnt').textContent=logs.length;
 }
 
-// ─── CONFIG ───────────────────────────────────────────────────
+// ─── CONFIG MODAL ─────────────────────────────────────────────
 async function openCfg() {
-  document.getElementById('cRail').value=localStorage.getItem('railway_url')||'';
-  document.getElementById('cOSAppId').value=localStorage.getItem('os_app_id')||'';
-  document.getElementById('cOSKey').value=localStorage.getItem('os_key')||'';
+  document.getElementById('cRail').value = localStorage.getItem('railway_url') || RAILWAY_URL;
+  document.getElementById('cOSAppId').value = localStorage.getItem('os_app_id') || '';
+  document.getElementById('cOSKey').value = localStorage.getItem('os_key') || '';
   try {
-    const cfg=await getConfig();
-    if(cfg){
-      document.getElementById('cTD').value=cfg.td_key||'';
-      document.getElementById('cAnt').value=cfg.ant_key||'';
-      document.getElementById('cEK').value=cfg.e_key||'';
-      document.getElementById('cES').value=cfg.e_secret||'';
-      document.getElementById('cAT').value=cfg.e_token||'';
-      document.getElementById('cAS').value=cfg.e_token_secret||'';
-      document.getElementById('cAcc').value=cfg.e_account||'';
-      document.getElementById('cItvl').value=cfg.interval||'5min';
-      document.getElementById('cCyc').value=cfg.cycle_seconds||60;
-      document.getElementById('cCap').value=cfg.capital||10000;
-      document.getElementById('cPos').value=cfg.pos_pct||95;
-      document.getElementById('cGrade').value=cfg.min_grade||'B';
-      document.getElementById('cScore').value=cfg.min_score||65;
-      document.getElementById('cWatch').value=cfg.watchlist||'';
-      document.getElementById('cSand').value=cfg.sandbox?'1':'0';
-      document.getElementById('cScrOn').value=cfg.screener_enabled?'1':'0';
-      document.getElementById('cScrGap').value=cfg.screener_min_gap||1.5;
-      document.getElementById('cScrMinPx').value=cfg.screener_min_price||10;
-      document.getElementById('cScrMaxPx').value=cfg.screener_max_price||500;
-      document.getElementById('cScrVol').value=cfg.screener_min_volume||500000;
-      document.getElementById('cScrPicks').value=cfg.screener_max_picks||15;
-      if(cfg.screener_universe)document.getElementById('cScrUni').value=cfg.screener_universe;
-      document.getElementById('cOSAppId').value=cfg.onesignal_app_id||'';
-      document.getElementById('cOSKey').value=cfg.onesignal_api_key||'';
+    const cfg = await getConfig();
+    if (cfg) {
+      document.getElementById('cBroker').value     = cfg.broker || 'etrade';
+      document.getElementById('cSchwabId').value   = cfg.schwab_client_id || '';
+      document.getElementById('cSchwabSecret').value = cfg.schwab_client_secret || '';
+      document.getElementById('cSchwabHash').value = cfg.schwab_account_hash || '';
+      document.getElementById('cTD').value         = cfg.td_key || '';
+      document.getElementById('cAnt').value        = cfg.ant_key || '';
+      document.getElementById('cEK').value         = cfg.e_key || '';
+      document.getElementById('cES').value         = cfg.e_secret || '';
+      document.getElementById('cAcc').value        = cfg.e_account || '';
+      document.getElementById('cItvl').value       = cfg.interval || '5min';
+      document.getElementById('cCyc').value        = cfg.cycle_seconds || 60;
+      document.getElementById('cCap').value        = cfg.capital || 10000;
+      document.getElementById('cPos').value        = cfg.pos_pct || 95;
+      document.getElementById('cGrade').value      = cfg.min_grade || 'B';
+      document.getElementById('cScore').value      = cfg.min_score || 65;
+      document.getElementById('cWatch').value      = cfg.watchlist || '';
+      document.getElementById('cSand').value       = cfg.sandbox ? '1' : '0';
+      document.getElementById('cScrOn').value      = cfg.screener_enabled ? '1' : '0';
+      document.getElementById('cScrGap').value     = cfg.screener_min_gap || 1.5;
+      document.getElementById('cScrMinPx').value   = cfg.screener_min_price || 10;
+      document.getElementById('cScrMaxPx').value   = cfg.screener_max_price || 500;
+      document.getElementById('cScrVol').value     = cfg.screener_min_volume || 500000;
+      document.getElementById('cScrPicks').value   = cfg.screener_max_picks || 15;
+      if (cfg.screener_universe) document.getElementById('cScrUni').value = cfg.screener_universe;
+      document.getElementById('cNotifEmail').value  = cfg.notification_email || '';
+      document.getElementById('cOSAppId').value    = cfg.onesignal_app_id || '';
+      document.getElementById('cOSKey').value      = cfg.onesignal_api_key || '';
     }
-  } catch(e){}
+  } catch(e) {}
   document.getElementById('cfgModal').classList.add('open');
 }
 
 async function saveConfig() {
-  const railUrl=document.getElementById('cRail').value.trim().replace(/\/$/,'');
+  const railUrl = document.getElementById('cRail').value.trim().replace(/\/$/,'') || RAILWAY_URL;
   localStorage.setItem('railway_url', railUrl);
-  const osAppId=document.getElementById('cOSAppId').value.trim();
-  const osKey=document.getElementById('cOSKey').value.trim();
-  if(osAppId)localStorage.setItem('os_app_id',osAppId);
-  if(osKey)localStorage.setItem('os_key',osKey);
+  const osAppId = document.getElementById('cOSAppId').value.trim();
+  const osKey   = document.getElementById('cOSKey').value.trim();
+  if (osAppId) localStorage.setItem('os_app_id', osAppId);
+  if (osKey)   localStorage.setItem('os_key', osKey);
+
   try {
-    await patchConfig({
-      td_key:document.getElementById('cTD').value.trim(),
-      ant_key:document.getElementById('cAnt').value.trim(),
-      e_key:document.getElementById('cEK').value.trim(),
-      e_secret:document.getElementById('cES').value.trim(),
-      e_token:document.getElementById('cAT').value.trim(),
-      e_token_secret:document.getElementById('cAS').value.trim(),
-      e_account:document.getElementById('cAcc').value.trim(),
-      interval:document.getElementById('cItvl').value,
-      cycle_seconds:+document.getElementById('cCyc').value||60,
-      capital:+document.getElementById('cCap').value||10000,
-      pos_pct:+document.getElementById('cPos').value||95,
-      min_grade:document.getElementById('cGrade').value,
-      min_score:+document.getElementById('cScore').value||65,
-      watchlist:document.getElementById('cWatch').value,
-      sandbox:document.getElementById('cSand').value==='1',
-      screener_enabled:document.getElementById('cScrOn').value==='1',
-      screener_min_gap:+document.getElementById('cScrGap').value||1.5,
-      screener_min_price:+document.getElementById('cScrMinPx').value||10,
-      screener_max_price:+document.getElementById('cScrMaxPx').value||500,
-      screener_min_volume:+document.getElementById('cScrVol').value||500000,
-      screener_max_picks:+document.getElementById('cScrPicks').value||15,
-      screener_universe:document.getElementById('cScrUni').value,
-      onesignal_app_id:osAppId,
-      onesignal_api_key:osKey,
-    });
+    await sb.from('config').update({
+      broker:               document.getElementById('cBroker').value,
+      schwab_client_id:     document.getElementById('cSchwabId').value.trim(),
+      schwab_client_secret: document.getElementById('cSchwabSecret').value.trim(),
+      schwab_account_hash:  document.getElementById('cSchwabHash').value.trim(),
+      td_key:               document.getElementById('cTD').value.trim(),
+      ant_key:              document.getElementById('cAnt').value.trim(),
+      e_key:                document.getElementById('cEK').value.trim(),
+      e_secret:             document.getElementById('cES').value.trim(),
+      e_account:            document.getElementById('cAcc').value.trim(),
+      interval:             document.getElementById('cItvl').value,
+      cycle_seconds:       +document.getElementById('cCyc').value || 60,
+      capital:             +document.getElementById('cCap').value || 10000,
+      pos_pct:             +document.getElementById('cPos').value || 95,
+      min_grade:            document.getElementById('cGrade').value,
+      min_score:           +document.getElementById('cScore').value || 65,
+      watchlist:            document.getElementById('cWatch').value,
+      sandbox:              document.getElementById('cSand').value === '1',
+      screener_enabled:     document.getElementById('cScrOn').value === '1',
+      screener_min_gap:    +document.getElementById('cScrGap').value || 1.5,
+      screener_min_price:  +document.getElementById('cScrMinPx').value || 10,
+      screener_max_price:  +document.getElementById('cScrMaxPx').value || 500,
+      screener_min_volume: +document.getElementById('cScrVol').value || 500000,
+      screener_max_picks:  +document.getElementById('cScrPicks').value || 15,
+      screener_universe:    document.getElementById('cScrUni').value,
+      notification_email:   document.getElementById('cNotifEmail').value.trim(),
+      onesignal_app_id:     osAppId,
+      onesignal_api_key:    osKey,
+      updated_at:           new Date().toISOString()
+    }).eq('user_id', currentUser.id);
     closeCfg();
     refreshAll();
-  } catch(e) { alert('Error saving: '+e.message); }
+  } catch(e) { alert('Error saving: ' + e.message); }
 }
 
-function closeCfg(){document.getElementById('cfgModal').classList.remove('open');}
+function closeCfg() { document.getElementById('cfgModal').classList.remove('open'); }
 
 // ─── PWA ─────────────────────────────────────────────────────
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 }
 </script>
 </body>
