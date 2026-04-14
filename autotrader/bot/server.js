@@ -173,20 +173,27 @@ app.get('/stripe/success', async (req, res) => {
     const custId  = session.customer;
 
     if (userId && subId) {
-      // Activate subscription in Supabase immediately
       console.log('[STRIPE] Activating subscription for user:', userId);
-      const updateResult = await sbPatch('config', {
-        stripe_customer_id:     custId,
-        stripe_subscription_id: subId,
-        subscription_status:    'active',
-        subscription_end:       null
-      }, `?user_id=eq.${userId}`);
-      console.log('[STRIPE] Update result:', JSON.stringify(updateResult).substring(0, 200));
+      // Use upsert so it works whether row exists or not
+      const upsertResult = await fetch(`${SB_URL}/rest/v1/config`, {
+        method: 'POST',
+        headers: {
+          ...SB_HDR,
+          Prefer: 'resolution=merge-duplicates,return=representation'
+        },
+        body: JSON.stringify({
+          user_id:               userId,
+          stripe_customer_id:    custId,
+          stripe_subscription_id: subId,
+          subscription_status:   'active',
+          subscription_end:      null
+        })
+      });
+      const upsertData = await upsertResult.json();
+      console.log('[STRIPE] Upsert result:', JSON.stringify(upsertData).substring(0, 200));
       await addLog('info', `Subscription activated for user ${userId} — sub: ${subId}`);
     } else {
       console.log('[STRIPE] Missing userId or subId — userId:', userId, 'subId:', subId);
-      console.log('[STRIPE] Full session metadata:', JSON.stringify(session.metadata));
-      console.log('[STRIPE] Subscription:', JSON.stringify(session.subscription)?.substring(0, 200));
     }
 
     res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -196,7 +203,7 @@ app.get('/stripe/success', async (req, res) => {
       <h2>✓ Payment Successful!</h2>
       <p>Your AutoTrader subscription is now active.</p>
       <p style="color:#4a7090">$20.00/month — renews automatically. Cancel anytime in your account settings.</p>
-      <a class="btn" href="https://autotrader-ruby.vercel.app">Open AutoTrader →</a>
+      <a class="btn" href="https://autotrader-ruby.vercel.app?activated=true">Open AutoTrader →</a>
     </div>
     </body></html>`);
   } catch (e) {
