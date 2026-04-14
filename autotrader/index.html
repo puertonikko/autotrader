@@ -10,6 +10,7 @@
 <link rel="manifest" href="/manifest.json">
 <title>AutoTrader</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script>
 window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -17,14 +18,14 @@ OneSignalDeferred.push(async function(OneSignal) {
   const appId = localStorage.getItem('os_app_id');
   if (!appId) return;
   await OneSignal.init({
-    appId: appId,
+    appId,
     notifyButton: { enable: false },
     promptOptions: {
       slidedown: {
         prompts: [{
           type: 'push', autoPrompt: true,
-          text: { actionMessage: 'Allow AutoTrader to send trade alerts and token renewal reminders.', acceptButton: 'Allow', cancelButton: 'Later' },
-          delay: { pageViews: 1, timeDelay: 3 }
+          text: { actionMessage: 'Allow AutoTrader to send trade alerts and session reminders.', acceptButton: 'Allow', cancelButton: 'Later' },
+          delay: { pageViews: 1, timeDelay: 5 }
         }]
       }
     }
@@ -36,6 +37,28 @@ OneSignalDeferred.push(async function(OneSignal) {
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;height:-webkit-fill-available;background:var(--bg0);color:var(--fg);font-family:var(--mono);font-size:13px;overflow:hidden;}
 body{display:flex;flex-direction:column;}
+
+/* ── AUTH SCREEN ── */
+.auth-screen{position:fixed;inset:0;background:var(--bg0);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 24px;z-index:1000;}
+.auth-screen.hidden{display:none;}
+.auth-logo{font-size:24px;font-weight:700;letter-spacing:.14em;color:var(--amb);margin-bottom:6px;}
+.auth-sub{font-size:10px;color:var(--fg3);margin-bottom:36px;letter-spacing:.08em;}
+.auth-card{background:var(--bg1);border:1px solid var(--bdr);border-radius:10px;padding:24px;width:100%;max-width:360px;}
+.auth-tab-row{display:flex;gap:0;margin-bottom:20px;background:var(--bg2);border-radius:6px;padding:3px;}
+.auth-tab{flex:1;padding:8px;text-align:center;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--fg2);transition:all .15s;}
+.auth-tab.active{background:var(--bg0);color:var(--fg);}
+.auth-label{font-size:9px;color:var(--fg3);letter-spacing:.1em;text-transform:uppercase;margin:12px 0 4px;}
+.auth-input{width:100%;background:var(--bg0);border:1px solid var(--bdr2);border-radius:5px;padding:12px;color:var(--fg);font-family:var(--mono);font-size:14px;outline:none;-webkit-appearance:none;}
+.auth-input:focus{border-color:var(--amb);}
+.auth-btn{width:100%;background:var(--grn);color:#050a0f;border:none;border-radius:6px;padding:14px;font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;margin-top:16px;letter-spacing:.06em;}
+.auth-btn:active{filter:brightness(.9);}
+.auth-err{font-size:10px;color:var(--red);margin-top:10px;text-align:center;min-height:16px;}
+.auth-note{font-size:9px;color:var(--fg3);text-align:center;margin-top:14px;line-height:1.6;}
+.auth-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:20px;color:var(--fg2);font-size:11px;}
+
+/* ── MAIN APP ── */
+.app-screen{display:none;flex-direction:column;height:100%;height:-webkit-fill-available;}
+.app-screen.visible{display:flex;}
 .hdr{display:flex;align-items:center;gap:10px;padding:calc(8px + var(--safe-t)) 14px 8px;background:var(--bg1);border-bottom:1px solid var(--bdr);flex-shrink:0;}
 .logo{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--amb);}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--fg3);flex-shrink:0;}
@@ -43,7 +66,7 @@ body{display:flex;flex-direction:column;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 .running .dot{animation:blink 1.4s infinite;}
 .stxt{font-size:10px;color:var(--fg2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.sp{flex:1;}
+.user-email{font-size:9px;color:var(--fg3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .badge{font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;}
 .badge-sb{background:var(--ambd);color:var(--amb);}
 .badge-live{background:var(--redd);color:var(--red);}
@@ -51,6 +74,7 @@ body{display:flex;flex-direction:column;}
 .btn-s{background:var(--grn);color:#050a0f;}
 .btn-x{background:var(--red);color:#fff;}
 .btn-g{background:var(--bg2);color:var(--fg2);border:1px solid var(--bdr2);}
+.btn-out{background:none;border:1px solid var(--bdr2);color:var(--fg3);padding:4px 8px;border-radius:4px;font-family:var(--mono);font-size:9px;cursor:pointer;}
 .pages{flex:1;overflow:hidden;position:relative;}
 .page{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;padding-bottom:8px;}
 .page.active{display:block;}
@@ -138,7 +162,6 @@ body{display:flex;flex-direction:column;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px;}
 @media(min-width:900px){
-  body{overflow:hidden;flex-direction:column;}
   .pages{display:grid;grid-template-columns:250px 1fr 270px;height:calc(100vh - 52px);}
   .page{position:static;display:block !important;overflow-y:auto;border-right:1px solid var(--bdr);}
   .page:last-child{border-right:none;}
@@ -146,267 +169,375 @@ body{display:flex;flex-direction:column;}
   .mbg{align-items:center;}
   .mbox{border-radius:10px;width:480px;max-width:92vw;padding:24px;}
   .drag-handle{display:none;}
+  .auth-card{max-width:400px;}
 }
 </style>
 </head>
 <body>
 
-<!-- CONFIG MODAL -->
-<div class="mbg" id="cfgModal">
-<div class="mbox">
-  <div class="drag-handle"></div>
-  <h2>Bot Configuration</h2>
-  <div class="mnote">Keys are saved to Supabase and used by the Railway bot server. Your Supabase anon key is safe to use here.</div>
-
-  <div class="msec">Connection</div>
-  <div class="mlbl">Supabase Project URL</div>
-  <input class="mi" type="text" id="cSBUrl" placeholder="https://xxxx.supabase.co" autocomplete="off"/>
-  <div class="mlbl">Supabase Anon Key</div>
-  <input class="mi" type="password" id="cSBKey" placeholder="sb_publishable_..." autocomplete="off"/>
-  <div class="mlbl">Railway Bot URL</div>
-  <input class="mi" type="text" id="cRail" placeholder="https://autotrader-xxx.up.railway.app" autocomplete="off"/>
-
-  <div class="msec">Market Data</div>
-  <div class="mlbl">Twelve Data API Key</div>
-  <input class="mi" type="password" id="cTD" placeholder="your_twelvedata_key" autocomplete="off"/>
-  <div class="mlbl">Anthropic API Key (Claude grader)</div>
-  <input class="mi" type="password" id="cAnt" placeholder="sk-ant-api03-..." autocomplete="off"/>
-
-  <div class="msec">E*Trade</div>
-  <div class="mlbl">Consumer Key</div>
-  <input class="mi" type="text" id="cEK" autocomplete="off"/>
-  <div class="mlbl">Consumer Secret</div>
-  <input class="mi" type="password" id="cES" autocomplete="off"/>
-  <div class="mlbl">Access Token (filled by /etrade/auth)</div>
-  <input class="mi" type="text" id="cAT" autocomplete="off" placeholder="Auto-filled after OAuth"/>
-  <div class="mlbl">Token Secret (filled by /etrade/auth)</div>
-  <input class="mi" type="password" id="cAS" autocomplete="off" placeholder="Auto-filled after OAuth"/>
-  <div class="mlbl">Account ID Key</div>
-  <input class="mi" type="text" id="cAcc" autocomplete="off"/>
-
-  <div class="msec">Trading Rules</div>
-  <div class="mlbl">Candle Interval</div>
-  <select class="mi" id="cItvl"><option value="5min" selected>5min (recommended)</option><option value="1min">1min</option><option value="15min">15min</option><option value="1day">1day</option></select>
-  <div class="mlbl">Scan cycle (seconds)</div>
-  <input class="mi" type="number" id="cCyc" value="60" min="15"/>
-  <div class="mlbl">Starting Capital ($)</div>
-  <input class="mi" type="number" id="cCap" value="10000"/>
-  <div class="mlbl">Position size (% of capital)</div>
-  <input class="mi" type="number" id="cPos" value="95"/>
-  <div class="mlbl">Minimum AI grade</div>
-  <select class="mi" id="cGrade"><option value="A">A only</option><option value="B" selected>B or better</option><option value="C">C or better</option></select>
-  <div class="mlbl">Minimum composite score</div>
-  <input class="mi" type="number" id="cScore" value="65"/>
-  <div class="mlbl">Watchlist (comma-separated)</div>
-  <input class="mi" type="text" id="cWatch" value="AAPL,MSFT,NVDA,TSLA,AMZN,GOOGL,META,AMD,JPM,SPY"/>
-  <div class="mlbl">Execution Mode</div>
-  <select class="mi" id="cSand"><option value="1" selected>Sandbox (log only)</option><option value="0">Live (real orders)</option></select>
-
-  <div class="msec">Screener</div>
-  <div class="mlbl">Screener enabled</div>
-  <select class="mi" id="cScrOn"><option value="1" selected>Yes — auto-populate watchlist at 9 AM ET</option><option value="0">No — manual watchlist only</option></select>
-  <div class="mlbl">Min gap % to qualify</div>
-  <input class="mi" type="number" id="cScrGap" value="1.5" step="0.5"/>
-  <div class="mlbl">Min price ($)</div>
-  <input class="mi" type="number" id="cScrMinPx" value="10"/>
-  <div class="mlbl">Max price ($)</div>
-  <input class="mi" type="number" id="cScrMaxPx" value="500"/>
-  <div class="mlbl">Min volume</div>
-  <input class="mi" type="number" id="cScrVol" value="500000"/>
-  <div class="mlbl">Max picks per day</div>
-  <input class="mi" type="number" id="cScrPicks" value="15"/>
-  <div class="mlbl">Universe (all candidate tickers)</div>
-  <textarea class="mi" id="cScrUni" rows="3" style="resize:vertical;line-height:1.5">AAPL,MSFT,NVDA,TSLA,AMZN,GOOGL,META,AMD,JPM,SPY,QQQ,NFLX,BABA,DIS,PYPL,SQ,ROKU,COIN,HOOD,PLTR,SOFI,RIVN,NIO,F,GM,BA,CAT,GE,XOM,CVX,WFC,BAC,GS,V,MA,COST,WMT,TGT,HD,MCD,SBUX,NKE,CRM,ADBE,SNOW,DDOG,NET,CRWD,PANW,MRNA,BNTX,PFE,JNJ,ABBV,UNH,CVS</textarea>
-
-  <div class="msec">Push Notifications (OneSignal)</div>
-  <div class="mlbl">OneSignal App ID</div>
-  <input class="mi" type="text" id="cOSAppId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off"/>
-  <div class="mlbl">OneSignal REST API Key</div>
-  <input class="mi" type="password" id="cOSKey" placeholder="REST API key from OneSignal dashboard" autocomplete="off"/>
-  <div style="font-size:9px;color:var(--fg3);margin-top:4px;line-height:1.6">Free at onesignal.com. You will be prompted to allow notifications after saving.</div>
-
-  <div class="mrow">
-    <button class="btn btn-s" onclick="saveConfig()">SAVE</button>
-    <button class="btn btn-g" onclick="closeCfg()">CANCEL</button>
-  </div>
-</div>
-</div>
-
-<!-- HEADER -->
-<div class="hdr" id="hdrEl">
-  <div class="logo">AUTOTRADER</div>
-  <div class="dot" id="dotEl"></div>
-  <span class="stxt" id="stxt">Connecting...</span>
-  <span id="mktBadge" class="badge badge-sb">CLOSED</span>
-  <span id="modeBadge" class="badge badge-sb" style="margin-left:4px">SB</span>
-</div>
-
-<div class="pages">
-
-  <!-- STATUS TAB -->
-  <div class="page active" id="pg0">
-    <div class="start-row">
-      <button class="btn btn-s" id="startBtn" onclick="toggleBot()">START BOT</button>
-      <button class="btn btn-g" onclick="openCfg()">CONFIG</button>
+<!-- ── AUTH SCREEN ── -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-logo">AUTOTRADER</div>
+  <div class="auth-sub">AUTONOMOUS TRADING BOT</div>
+  <div class="auth-card">
+    <div class="auth-tab-row">
+      <div class="auth-tab active" id="tabLogin" onclick="showLogin()">SIGN IN</div>
+      <div class="auth-tab" id="tabSignup" onclick="showSignup()">REGISTER</div>
     </div>
-    <div id="setupBanner" style="display:none;background:var(--ambd);border:1px solid rgba(245,166,35,.3);border-radius:8px;margin:0 12px 10px;padding:14px;font-size:11px;color:var(--amb);line-height:1.7">
-      First time setup: tap CONFIG and enter your Supabase URL and Anon Key to connect.
+
+    <!-- Login form -->
+    <div id="loginForm">
+      <div class="auth-label">Email</div>
+      <input class="auth-input" type="email" id="loginEmail" placeholder="you@email.com" autocomplete="email"/>
+      <div class="auth-label">Password</div>
+      <input class="auth-input" type="password" id="loginPass" placeholder="Password" autocomplete="current-password"/>
+      <button class="auth-btn" onclick="doLogin()">SIGN IN</button>
+      <div class="auth-err" id="loginErr"></div>
+      <div class="auth-note">Your data syncs across all devices automatically.</div>
     </div>
-    <div class="card">
-      <div class="card-hd">Bot State <span id="lastSync" style="color:var(--fg3);font-size:8px"></span></div>
-      <div class="card-bd">
-        <div class="sg">
-          <div class="sc"><div class="sl">Balance</div><div class="sv bull" id="sBal">--</div></div>
-          <div class="sc"><div class="sl">Total Return</div><div class="sv" id="sRet">--</div></div>
-          <div class="sc"><div class="sl">Trades</div><div class="sv" id="sTrd">--</div></div>
-          <div class="sc"><div class="sl">Win Rate</div><div class="sv" id="sWR">--</div></div>
-          <div class="sc"><div class="sl">Open Position</div><div class="sv amb" id="sPos">--</div></div>
-          <div class="sc"><div class="sl">Next Trade</div><div class="sv" id="sNxt" style="font-size:11px;padding-top:2px">--</div></div>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-hd">Compound Progress (1%/trade)</div>
-      <div class="card-bd">
-        <div class="cmp">
-          <div class="cmpc"><div class="cmpv bull" id="cpA">--</div><div class="cmpl">Actual</div></div>
-          <div class="cmpc"><div class="cmpv amb" id="cpT">--</div><div class="cmpl">Target</div></div>
-          <div class="cmpc"><div class="cmpv" id="cpD">--</div><div class="cmpl">vs Target</div></div>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-hd">Execution Status</div>
-      <div class="card-bd">
-        <div class="ep">
-          <div class="er"><span class="ek">Bot server</span><span id="epSrv" style="color:var(--fg2)">--</span></div>
-          <div class="er"><span class="ek">Clearing</span><span id="epClr" style="color:var(--grn)">--</span></div>
-          <div class="er"><span class="ek">Open position</span><span id="epOpn" style="color:var(--fg2)">None</span></div>
-          <div class="er"><span class="ek">Mode</span><span id="epSand" style="color:var(--amb)">--</span></div>
-          <div class="er"><span class="ek">E*Trade</span><span id="epEtrade" style="color:var(--fg2)">--</span></div>
-          <div class="er"><span class="ek">Last action</span><span id="epLst" style="color:var(--fg2)">--</span></div>
-        </div>
-        <button onclick="openETradeAuth()" style="width:100%;margin-top:10px;padding:10px;background:var(--ambd);border:1px solid rgba(245,166,35,.3);border-radius:5px;color:var(--amb);font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer">AUTHORIZE E*TRADE</button>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-hd">Premarket Screener <button onclick="runScreener()" style="background:var(--ambd);border:1px solid rgba(245,166,35,.3);color:var(--amb);padding:3px 9px;border-radius:3px;font-family:var(--mono);font-size:8px;font-weight:700;cursor:pointer">RUN NOW</button></div>
-      <div class="card-bd">
-        <div class="scrcard">
-          <div class="scr-r"><span class="scr-k">Status</span><span id="scrStat" style="color:var(--grn)">--</span></div>
-          <div class="scr-r"><span class="scr-k">Last run</span><span id="scrRun" style="color:var(--fg2)">--</span></div>
-          <div class="scr-r"><span class="scr-k">Today's picks</span><span id="scrPicks" style="color:var(--amb);font-size:8px;max-width:60%;text-align:right">--</span></div>
-          <div class="scr-r"><span class="scr-k">Runs at</span><span style="color:var(--fg2)">9:00 AM ET daily</span></div>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-hd">Learning Coefficients</div>
-      <div class="card-bd">
-        <div id="coefEl"></div>
-        <div style="font-size:9px;color:var(--fg3);margin-top:8px;line-height:1.6">Updated after each closed trade. Higher = more predictive for this bot.</div>
-      </div>
+
+    <!-- Signup form -->
+    <div id="signupForm" style="display:none">
+      <div class="auth-label">Email</div>
+      <input class="auth-input" type="email" id="signupEmail" placeholder="you@email.com" autocomplete="email"/>
+      <div class="auth-label">Password</div>
+      <input class="auth-input" type="password" id="signupPass" placeholder="Min 6 characters" autocomplete="new-password"/>
+      <div class="auth-label">Confirm Password</div>
+      <input class="auth-input" type="password" id="signupPass2" placeholder="Confirm password" autocomplete="new-password"/>
+      <button class="auth-btn" onclick="doSignup()">CREATE ACCOUNT</button>
+      <div class="auth-err" id="signupErr"></div>
+      <div class="auth-note">Check your email to confirm your account after registering.</div>
     </div>
   </div>
+</div>
 
-  <!-- SIGNALS TAB -->
-  <div class="page" id="pg1">
-    <div class="card">
-      <div class="card-hd">Last Analysis — <span id="curTk" style="color:var(--fg)">--</span> <span id="curPx" style="font-weight:700"></span></div>
-      <div class="card-bd">
-        <div class="ig">
-          <div class="ic"><div class="il">RSI(14)</div><div class="iv neu" id="iv-rsi">--</div><div class="is neu" id="is-rsi">--</div></div>
-          <div class="ic"><div class="il">MACD</div><div class="iv neu" id="iv-macd">--</div><div class="is neu" id="is-macd">--</div></div>
-          <div class="ic"><div class="il">BB %B</div><div class="iv neu" id="iv-bb">--</div><div class="is neu" id="is-bb">--</div></div>
-          <div class="ic"><div class="il">VWAP</div><div class="iv neu" id="iv-vwap">--</div><div class="is neu" id="is-vwap">--</div></div>
-          <div class="ic"><div class="il">SMA cross</div><div class="iv neu" id="iv-sma">--</div><div class="is neu" id="is-sma">--</div></div>
-          <div class="ic"><div class="il">EMA cross</div><div class="iv neu" id="iv-ema">--</div><div class="is neu" id="is-ema">--</div></div>
-        </div>
-        <div style="margin-top:12px">
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-            <span style="font-size:9px;color:var(--fg2)">Weighted composite</span>
-            <span id="compN" style="font-size:13px;font-weight:700;color:var(--amb)">--</span>
+<!-- ── MAIN APP ── -->
+<div class="app-screen" id="appScreen">
+
+  <!-- CONFIG MODAL -->
+  <div class="mbg" id="cfgModal">
+  <div class="mbox">
+    <div class="drag-handle"></div>
+    <h2>Bot Configuration</h2>
+    <div class="mnote">These settings are saved to your account and sync across all your devices automatically.</div>
+
+    <div class="msec">Bot Server</div>
+    <div class="mlbl">Railway Bot URL</div>
+    <input class="mi" type="text" id="cRail" placeholder="https://autotrader-xxx.up.railway.app" autocomplete="off"/>
+
+    <div class="msec">Market Data</div>
+    <div class="mlbl">Twelve Data API Key</div>
+    <input class="mi" type="password" id="cTD" placeholder="your_twelvedata_key" autocomplete="off"/>
+    <div class="mlbl">Anthropic API Key (Claude grader)</div>
+    <input class="mi" type="password" id="cAnt" placeholder="sk-ant-api03-..." autocomplete="off"/>
+
+    <div class="msec">E*Trade</div>
+    <div class="mlbl">Consumer Key</div>
+    <input class="mi" type="text" id="cEK" autocomplete="off"/>
+    <div class="mlbl">Consumer Secret</div>
+    <input class="mi" type="password" id="cES" autocomplete="off"/>
+    <div class="mlbl">Access Token (auto-filled by OAuth)</div>
+    <input class="mi" type="text" id="cAT" autocomplete="off" placeholder="Filled after /etrade/auth"/>
+    <div class="mlbl">Token Secret (auto-filled by OAuth)</div>
+    <input class="mi" type="password" id="cAS" autocomplete="off" placeholder="Filled after /etrade/auth"/>
+    <div class="mlbl">Account ID Key</div>
+    <input class="mi" type="text" id="cAcc" autocomplete="off"/>
+
+    <div class="msec">Trading Rules</div>
+    <div class="mlbl">Candle Interval</div>
+    <select class="mi" id="cItvl"><option value="5min" selected>5min (recommended)</option><option value="1min">1min</option><option value="15min">15min</option><option value="1day">1day</option></select>
+    <div class="mlbl">Scan cycle (seconds)</div>
+    <input class="mi" type="number" id="cCyc" value="60" min="15"/>
+    <div class="mlbl">Starting Capital ($)</div>
+    <input class="mi" type="number" id="cCap" value="10000"/>
+    <div class="mlbl">Position size (% of capital)</div>
+    <input class="mi" type="number" id="cPos" value="95"/>
+    <div class="mlbl">Minimum AI grade</div>
+    <select class="mi" id="cGrade"><option value="A">A only</option><option value="B" selected>B or better</option><option value="C">C or better</option></select>
+    <div class="mlbl">Minimum composite score</div>
+    <input class="mi" type="number" id="cScore" value="65"/>
+    <div class="mlbl">Watchlist (comma-separated)</div>
+    <input class="mi" type="text" id="cWatch" value="AAPL,MSFT,NVDA,TSLA,AMZN,GOOGL,META,AMD,JPM,SPY"/>
+    <div class="mlbl">Execution Mode</div>
+    <select class="mi" id="cSand"><option value="1" selected>Sandbox (log only)</option><option value="0">Live (real orders)</option></select>
+
+    <div class="msec">Screener</div>
+    <div class="mlbl">Screener enabled</div>
+    <select class="mi" id="cScrOn"><option value="1" selected>Yes — auto-populate watchlist at 9 AM ET</option><option value="0">No — manual watchlist only</option></select>
+    <div class="mlbl">Min gap % to qualify</div>
+    <input class="mi" type="number" id="cScrGap" value="1.5" step="0.5"/>
+    <div class="mlbl">Min price ($)</div>
+    <input class="mi" type="number" id="cScrMinPx" value="10"/>
+    <div class="mlbl">Max price ($)</div>
+    <input class="mi" type="number" id="cScrMaxPx" value="500"/>
+    <div class="mlbl">Min volume</div>
+    <input class="mi" type="number" id="cScrVol" value="500000"/>
+    <div class="mlbl">Max picks per day</div>
+    <input class="mi" type="number" id="cScrPicks" value="15"/>
+    <div class="mlbl">Universe (all candidate tickers)</div>
+    <textarea class="mi" id="cScrUni" rows="3" style="resize:vertical;line-height:1.5">AAPL,MSFT,NVDA,TSLA,AMZN,GOOGL,META,AMD,JPM,SPY,QQQ,NFLX,BABA,DIS,PYPL,SQ,ROKU,COIN,HOOD,PLTR,SOFI,RIVN,NIO,F,GM,BA,CAT,GE,XOM,CVX,WFC,BAC,GS,V,MA,COST,WMT,TGT,HD,MCD,SBUX,NKE,CRM,ADBE,SNOW,DDOG,NET,CRWD,PANW,MRNA,BNTX,PFE,JNJ,ABBV,UNH,CVS</textarea>
+
+    <div class="msec">Push Notifications (OneSignal)</div>
+    <div class="mlbl">OneSignal App ID</div>
+    <input class="mi" type="text" id="cOSAppId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off"/>
+    <div class="mlbl">OneSignal REST API Key</div>
+    <input class="mi" type="password" id="cOSKey" placeholder="REST API key" autocomplete="off"/>
+
+    <div class="mrow">
+      <button class="btn btn-s" onclick="saveConfig()">SAVE</button>
+      <button class="btn btn-g" onclick="closeCfg()">CANCEL</button>
+    </div>
+  </div>
+  </div>
+
+  <!-- HEADER -->
+  <div class="hdr" id="hdrEl">
+    <div class="logo">AUTOTRADER</div>
+    <div class="dot" id="dotEl"></div>
+    <span class="stxt" id="stxt">Loading...</span>
+    <span class="user-email" id="userEmail"></span>
+    <span id="modeBadge" class="badge badge-sb" style="margin-left:4px">SB</span>
+    <button class="btn-out" onclick="doLogout()" style="margin-left:6px">OUT</button>
+  </div>
+
+  <div class="pages">
+
+    <!-- STATUS TAB -->
+    <div class="page active" id="pg0">
+      <div class="start-row">
+        <button class="btn btn-s" id="startBtn" onclick="toggleBot()">START BOT</button>
+        <button class="btn btn-g" onclick="openCfg()">CONFIG</button>
+      </div>
+      <div class="card">
+        <div class="card-hd">Bot State <span id="lastSync" style="color:var(--fg3);font-size:8px"></span></div>
+        <div class="card-bd">
+          <div class="sg">
+            <div class="sc"><div class="sl">Balance</div><div class="sv bull" id="sBal">--</div></div>
+            <div class="sc"><div class="sl">Total Return</div><div class="sv" id="sRet">--</div></div>
+            <div class="sc"><div class="sl">Trades</div><div class="sv" id="sTrd">--</div></div>
+            <div class="sc"><div class="sl">Win Rate</div><div class="sv" id="sWR">--</div></div>
+            <div class="sc"><div class="sl">Open Position</div><div class="sv amb" id="sPos">--</div></div>
+            <div class="sc"><div class="sl">Next Trade</div><div class="sv" id="sNxt" style="font-size:11px;padding-top:2px">--</div></div>
           </div>
-          <div class="barw"><div class="bar" id="compB" style="width:50%;background:var(--amb)"></div></div>
-          <div id="compL" style="font-size:10px;color:var(--fg3)">--</div>
         </div>
-        <div class="dbox">
-          <div style="font-size:9px;color:var(--fg3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">AI Grade (Claude)</div>
-          <div class="dsig neu" id="dSig">--</div>
-          <div class="dgr neu" id="dGr">--</div>
-          <div class="drsn" id="dRsn">Start bot to see analysis...</div>
+      </div>
+      <div class="card">
+        <div class="card-hd">Compound Progress (1%/trade)</div>
+        <div class="card-bd">
+          <div class="cmp">
+            <div class="cmpc"><div class="cmpv bull" id="cpA">--</div><div class="cmpl">Actual</div></div>
+            <div class="cmpc"><div class="cmpv amb" id="cpT">--</div><div class="cmpl">Target</div></div>
+            <div class="cmpc"><div class="cmpv" id="cpD">--</div><div class="cmpl">vs Target</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd">Execution Status</div>
+        <div class="card-bd">
+          <div class="ep">
+            <div class="er"><span class="ek">Bot server</span><span id="epSrv" style="color:var(--fg2)">--</span></div>
+            <div class="er"><span class="ek">Clearing</span><span id="epClr" style="color:var(--grn)">--</span></div>
+            <div class="er"><span class="ek">Open position</span><span id="epOpn" style="color:var(--fg2)">None</span></div>
+            <div class="er"><span class="ek">Mode</span><span id="epSand" style="color:var(--amb)">--</span></div>
+            <div class="er"><span class="ek">E*Trade</span><span id="epEtrade" style="color:var(--fg2)">--</span></div>
+            <div class="er"><span class="ek">Last action</span><span id="epLst" style="color:var(--fg2)">--</span></div>
+          </div>
+          <button onclick="openETradeAuth()" style="width:100%;margin-top:10px;padding:10px;background:var(--ambd);border:1px solid rgba(245,166,35,.3);border-radius:5px;color:var(--amb);font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer">AUTHORIZE E*TRADE</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd">Premarket Screener <button onclick="runScreener()" style="background:var(--ambd);border:1px solid rgba(245,166,35,.3);color:var(--amb);padding:3px 9px;border-radius:3px;font-family:var(--mono);font-size:8px;font-weight:700;cursor:pointer">RUN NOW</button></div>
+        <div class="card-bd">
+          <div class="scrcard">
+            <div class="scr-r"><span class="scr-k">Status</span><span id="scrStat" style="color:var(--grn)">--</span></div>
+            <div class="scr-r"><span class="scr-k">Last run</span><span id="scrRun" style="color:var(--fg2)">--</span></div>
+            <div class="scr-r"><span class="scr-k">Today's picks</span><span id="scrPicks" style="color:var(--amb);font-size:8px;max-width:60%;text-align:right">--</span></div>
+            <div class="scr-r"><span class="scr-k">Runs at</span><span style="color:var(--fg2)">9:00 AM ET daily</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd">Learning Coefficients</div>
+        <div class="card-bd">
+          <div id="coefEl"></div>
+          <div style="font-size:9px;color:var(--fg3);margin-top:8px;line-height:1.6">Updated after each closed trade.</div>
         </div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-hd">Watchlist</div>
-      <div id="wlEl"><div style="padding:14px;text-align:center;font-size:10px;color:var(--fg3)">Bot will populate as it scans...</div></div>
+
+    <!-- SIGNALS TAB -->
+    <div class="page" id="pg1">
+      <div class="card">
+        <div class="card-hd">Last Analysis — <span id="curTk" style="color:var(--fg)">--</span> <span id="curPx" style="font-weight:700"></span></div>
+        <div class="card-bd">
+          <div class="ig">
+            <div class="ic"><div class="il">RSI(14)</div><div class="iv neu" id="iv-rsi">--</div><div class="is neu" id="is-rsi">--</div></div>
+            <div class="ic"><div class="il">MACD</div><div class="iv neu" id="iv-macd">--</div><div class="is neu" id="is-macd">--</div></div>
+            <div class="ic"><div class="il">BB %B</div><div class="iv neu" id="iv-bb">--</div><div class="is neu" id="is-bb">--</div></div>
+            <div class="ic"><div class="il">VWAP</div><div class="iv neu" id="iv-vwap">--</div><div class="is neu" id="is-vwap">--</div></div>
+            <div class="ic"><div class="il">SMA cross</div><div class="iv neu" id="iv-sma">--</div><div class="is neu" id="is-sma">--</div></div>
+            <div class="ic"><div class="il">EMA cross</div><div class="iv neu" id="iv-ema">--</div><div class="is neu" id="is-ema">--</div></div>
+          </div>
+          <div style="margin-top:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:9px;color:var(--fg2)">Weighted composite</span>
+              <span id="compN" style="font-size:13px;font-weight:700;color:var(--amb)">--</span>
+            </div>
+            <div class="barw"><div class="bar" id="compB" style="width:50%;background:var(--amb)"></div></div>
+            <div id="compL" style="font-size:10px;color:var(--fg3)">--</div>
+          </div>
+          <div class="dbox">
+            <div style="font-size:9px;color:var(--fg3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">AI Grade (Claude)</div>
+            <div class="dsig neu" id="dSig">--</div>
+            <div class="dgr neu" id="dGr">--</div>
+            <div class="drsn" id="dRsn">Start bot to see analysis...</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd">Watchlist</div>
+        <div id="wlEl"><div style="padding:14px;text-align:center;font-size:10px;color:var(--fg3)">Bot will populate as it scans...</div></div>
+      </div>
     </div>
+
+    <!-- TRADES TAB -->
+    <div class="page" id="pg2">
+      <div class="card">
+        <div class="card-hd">Completed Trades</div>
+        <div class="tr hd"><span>TICK</span><span>RES</span><span>ENTRY</span><span>P&L</span><span>DATE</span></div>
+        <div id="tradeEl"><div style="padding:16px;text-align:center;font-size:10px;color:var(--fg3)">No trades yet.</div></div>
+      </div>
+    </div>
+
+    <!-- LOG TAB -->
+    <div class="page" id="pg3">
+      <div class="card" style="margin-bottom:0;border-radius:8px 8px 0 0">
+        <div class="card-hd">Activity Log <span id="logCnt" style="color:var(--fg3)">0</span></div>
+        <div id="logEl"><div style="padding:16px;text-align:center;font-size:10px;color:var(--fg3)">Start bot to see activity.</div></div>
+      </div>
+    </div>
+
   </div>
 
-  <!-- TRADES TAB -->
-  <div class="page" id="pg2">
-    <div class="card">
-      <div class="card-hd">Completed Trades</div>
-      <div class="tr hd"><span>TICK</span><span>RES</span><span>ENTRY</span><span>P&L</span><span>DATE</span></div>
-      <div id="tradeEl"><div style="padding:16px;text-align:center;font-size:10px;color:var(--fg3)">No trades yet.</div></div>
-    </div>
-  </div>
+  <nav class="tabnav">
+    <button class="tab active" id="tab0" onclick="switchTab(0)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>STATUS
+    </button>
+    <button class="tab" id="tab1" onclick="switchTab(1)">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>SIGNALS
+    </button>
+    <button class="tab" id="tab2" onclick="switchTab(2)">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>TRADES
+    </button>
+    <button class="tab" id="tab3" onclick="switchTab(3)">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>LOG
+    </button>
+  </nav>
 
-  <!-- LOG TAB -->
-  <div class="page" id="pg3">
-    <div class="card" style="margin-bottom:0;border-radius:8px 8px 0 0">
-      <div class="card-hd">Activity Log <span id="logCnt" style="color:var(--fg3)">0</span></div>
-      <div id="logEl"><div style="padding:16px;text-align:center;font-size:10px;color:var(--fg3)">Start bot to see activity.</div></div>
-    </div>
-  </div>
-
-</div>
-
-<!-- BOTTOM NAV -->
-<nav class="tabnav">
-  <button class="tab active" id="tab0" onclick="switchTab(0)">
-    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>STATUS
-  </button>
-  <button class="tab" id="tab1" onclick="switchTab(1)">
-    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>SIGNALS
-  </button>
-  <button class="tab" id="tab2" onclick="switchTab(2)">
-    <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>TRADES
-  </button>
-  <button class="tab" id="tab3" onclick="switchTab(3)">
-    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>LOG
-  </button>
-</nav>
+</div><!-- /app-screen -->
 
 <script>
-// ─── CONNECTION ───────────────────────────────────────────────
-let SB_URL      = localStorage.getItem('sb_url') || '';
-let SB_KEY      = localStorage.getItem('sb_key') || '';
-let RAILWAY_URL = localStorage.getItem('railway_url') || '';
+// ─── SUPABASE INIT ───────────────────────────────────────────
+const SB_URL  = 'https://olujbahtxcyoknfvlppx.supabase.co';
+const SB_ANON = 'sb_publishable_UjU7B8RvcGKVSwpH1EJx7A'; // your anon key
+const RAILWAY = localStorage.getItem('railway_url') || '';
 
-async function sb(table, opts={}) {
-  const {method='GET', data, query=''} = opts;
-  const headers = {apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json'};
-  if (method==='PATCH') headers.Prefer='return=representation';
-  const r = await fetch(`${SB_URL}/rest/v1/${table}${query}`, {
-    method, headers, body: data ? JSON.stringify(data) : undefined
-  });
-  return r.json();
+// Initialize Supabase client with Auth
+const { createClient } = supabase;
+const sb = createClient(SB_URL, SB_ANON);
+
+let currentUser = null;
+let refreshInterval = null;
+
+// ─── AUTH ────────────────────────────────────────────────────
+function showLogin() {
+  document.getElementById('loginForm').style.display='block';
+  document.getElementById('signupForm').style.display='none';
+  document.getElementById('tabLogin').classList.add('active');
+  document.getElementById('tabSignup').classList.remove('active');
 }
-const getState  = () => sb('bot_state', {query:'?id=eq.1'}).then(r=>r[0]);
-const getConfig = () => sb('config',    {query:'?id=eq.1'}).then(r=>r[0]);
-const getTrades = () => sb('trades',    {query:'?order=created_at.desc&limit=60'});
-const getLogs   = () => sb('activity_log', {query:'?order=created_at.desc&limit=100'});
-
-async function patchSBConfig(data) {
-  return sb('config', {method:'PATCH', data:{...data, updated_at:new Date().toISOString()}, query:'?id=eq.1'});
+function showSignup() {
+  document.getElementById('signupForm').style.display='block';
+  document.getElementById('loginForm').style.display='none';
+  document.getElementById('tabSignup').classList.add('active');
+  document.getElementById('tabLogin').classList.remove('active');
 }
 
-// ─── TAB NAV ──────────────────────────────────────────────────
-function switchTab(i) {
-  document.querySelectorAll('.page').forEach((p,j)=>p.classList.toggle('active',j===i));
-  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  document.getElementById('loginErr').textContent = '';
+  if (!email || !pass) { document.getElementById('loginErr').textContent = 'Enter email and password'; return; }
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { document.getElementById('loginErr').textContent = error.message; return; }
+  // onAuthStateChange handles the rest
+}
+
+async function doSignup() {
+  const email = document.getElementById('signupEmail').value.trim();
+  const pass  = document.getElementById('signupPass').value;
+  const pass2 = document.getElementById('signupPass2').value;
+  document.getElementById('signupErr').textContent = '';
+  if (!email || !pass) { document.getElementById('signupErr').textContent = 'Enter email and password'; return; }
+  if (pass !== pass2)  { document.getElementById('signupErr').textContent = 'Passwords do not match'; return; }
+  if (pass.length < 6) { document.getElementById('signupErr').textContent = 'Password must be at least 6 characters'; return; }
+  const { error } = await sb.auth.signUp({ email, password: pass });
+  if (error) { document.getElementById('signupErr').textContent = error.message; return; }
+  document.getElementById('signupErr').style.color = 'var(--grn)';
+  document.getElementById('signupErr').textContent = 'Check your email to confirm your account!';
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  // onAuthStateChange handles the redirect back to login
+}
+
+// Listen for auth state changes
+sb.auth.onAuthStateChange((event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    showApp();
+  } else {
+    currentUser = null;
+    showAuthScreen();
+  }
+});
+
+function showApp() {
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('appScreen').classList.add('visible');
+  document.getElementById('userEmail').textContent = currentUser?.email || '';
+  startRefresh();
+}
+
+function showAuthScreen() {
+  document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('appScreen').classList.remove('visible');
+  if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
+}
+
+// ─── DATA ACCESS (uses Supabase Auth session automatically) ──
+async function getState() {
+  const { data } = await sb.from('bot_state').select('*').eq('user_id', currentUser.id).single();
+  return data;
+}
+async function getConfig() {
+  const { data } = await sb.from('config').select('*').eq('user_id', currentUser.id).single();
+  return data;
+}
+async function getTrades() {
+  const { data } = await sb.from('trades').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(60);
+  return data;
+}
+async function getLogs() {
+  const { data } = await sb.from('activity_log').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(100);
+  return data;
+}
+async function patchState(d) {
+  await sb.from('bot_state').update({ ...d, updated_at: new Date().toISOString() }).eq('user_id', currentUser.id);
+}
+async function patchConfig(d) {
+  await sb.from('config').update({ ...d, updated_at: new Date().toISOString() }).eq('user_id', currentUser.id);
 }
 
 // ─── BOT CONTROL ─────────────────────────────────────────────
@@ -414,39 +545,46 @@ async function toggleBot() {
   const state = await getState();
   if (!state) return;
   const next = !state.running;
-  await sb('bot_state', {method:'PATCH', data:{running:next}, query:'?id=eq.1'});
-  if (RAILWAY_URL) {
-    try { await fetch(RAILWAY_URL+(next?'/bot/start':'/bot/stop'), {method:'POST'}); } catch(e){}
+  await patchState({ running: next });
+  const railUrl = localStorage.getItem('railway_url') || '';
+  if (railUrl) {
+    try { await fetch(railUrl + (next ? '/bot/start' : '/bot/stop'), { method: 'POST' }); } catch(e) {}
   }
   setTimeout(refreshAll, 1000);
 }
 
 function openETradeAuth() {
-  if (!RAILWAY_URL) { alert('Add Railway Bot URL in CONFIG first'); return; }
-  window.open(RAILWAY_URL+'/etrade/auth', '_blank');
+  const railUrl = localStorage.getItem('railway_url') || '';
+  if (!railUrl) { alert('Add Railway Bot URL in CONFIG first'); return; }
+  window.open(railUrl + '/etrade/auth', '_blank');
 }
 
 async function runScreener() {
-  if (!RAILWAY_URL) { alert('Add Railway Bot URL in CONFIG first'); return; }
-  try {
-    await fetch(RAILWAY_URL+'/screener/run', {method:'POST'});
-    setStatus('Screener started — check Log tab in a moment');
-  } catch(e) { alert('Error: '+e.message); }
+  const railUrl = localStorage.getItem('railway_url') || '';
+  if (!railUrl) { alert('Add Railway Bot URL in CONFIG first'); return; }
+  try { await fetch(railUrl + '/screener/run', { method: 'POST' }); setStatus('Screener started...'); } catch(e) {}
+}
+
+// ─── TAB NAV ─────────────────────────────────────────────────
+function switchTab(i) {
+  document.querySelectorAll('.page').forEach((p,j)=>p.classList.toggle('active',j===i));
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────
 function bizAdd(d,n){let r=new Date(d),c=0;while(c<n){r.setDate(r.getDate()+1);if(r.getDay()!==0&&r.getDay()!==6)c++;}return r;}
 const clearOk=lt=>!lt||new Date()>=bizAdd(new Date(lt),3);
 function nextTrade(lt){if(!lt)return'Now';const d=bizAdd(new Date(lt),3);return d<=new Date()?'Now':d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function setStatus(m){document.getElementById('stxt').textContent=m;}
 
-// ─── REFRESH (polls Supabase every 5s) ───────────────────────
+// ─── REFRESH ─────────────────────────────────────────────────
+function startRefresh() {
+  refreshAll();
+  refreshInterval = setInterval(refreshAll, 5000);
+}
+
 async function refreshAll() {
-  if (!SB_URL || !SB_KEY) {
-    document.getElementById('setupBanner').style.display='block';
-    setStatus('Setup required — tap CONFIG');
-    return;
-  }
-  document.getElementById('setupBanner').style.display='none';
+  if (!currentUser) return;
   try {
     const [state, cfg, trades, logs] = await Promise.all([getState(), getConfig(), getTrades(), getLogs()]);
     renderState(state, cfg, trades);
@@ -457,9 +595,10 @@ async function refreshAll() {
     renderLogs(logs);
     renderScreener(cfg);
     document.getElementById('lastSync').textContent = new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  } catch(e) { setStatus('Connection error — check Config'); }
+  } catch(e) { setStatus('Sync error — retrying...'); }
 }
 
+// ─── RENDERERS ───────────────────────────────────────────────
 function renderState(state, cfg, trades) {
   if (!state||!cfg) return;
   const start=cfg.capital||10000, bal=state.balance||start;
@@ -505,7 +644,7 @@ function renderState(state, cfg, trades) {
   document.getElementById('epOpn').textContent=state.open_trade?`${state.open_trade.symbol} ${state.open_trade.shares}sh @ $${state.open_trade.entry_price?.toFixed(2)}`:'None';
   document.getElementById('epSand').textContent=cfg.sandbox?'Sandbox — no real orders':'LIVE TRADING';
   document.getElementById('epSand').style.color=cfg.sandbox?'var(--amb)':'var(--red)';
-  document.getElementById('epEtrade').textContent=cfg.e_token?'Connected':'Not authorized — tap button below';
+  document.getElementById('epEtrade').textContent=cfg.e_token?'Connected':'Not authorized';
   document.getElementById('epEtrade').style.color=cfg.e_token?'var(--grn)':'var(--amb)';
   document.getElementById('epLst').textContent=state.status_text||'--';
 }
@@ -522,7 +661,7 @@ function renderAnalysis(state) {
    ['SMA','$'+(a.s20?.toFixed(2)||'--'),'iv-sma','is-sma'],
    ['EMA','$'+(a.e1?.toFixed(2)||'--'),'iv-ema','is-ema'],
   ].forEach(([k,v,vi,si])=>{
-    const s=sigs[k], cl=s?.bull===true?'bull':s?.bull===false?'bear':'neu';
+    const s=sigs[k],cl=s?.bull===true?'bull':s?.bull===false?'bear':'neu';
     document.getElementById(vi).textContent=v;
     document.getElementById(vi).className='iv '+cl;
     document.getElementById(si).textContent=s?.label||'--';
@@ -534,11 +673,8 @@ function renderAnalysis(state) {
   document.getElementById('compN').textContent=comp;
   document.getElementById('compN').style.color=col;
   document.getElementById('compL').textContent=comp>=70?'Strong buy signal':comp>=60?'Moderate buy':comp<=30?'Strong sell':comp<=40?'Moderate sell':'Neutral';
-
-  // Watchlist
-  const wlEl=document.getElementById('wlEl');
   if(a.symbol){
-    wlEl.innerHTML=`<div class="wi fresh"><span class="wtk">${a.symbol}</span><span class="wpx">${a.px?'$'+(+a.px).toFixed(2):'--'}</span><span class="wch neu">last scan</span><span class="wst"></span><span class="wsc ${comp>=65?'bull':comp<=35?'bear':'amb'}">${comp}</span></div>`;
+    document.getElementById('wlEl').innerHTML=`<div class="wi fresh"><span class="wtk">${a.symbol}</span><span class="wpx">${a.px?'$'+(+a.px).toFixed(2):'--'}</span><span class="wch neu">last scan</span><span class="wst"></span><span class="wsc ${comp>=65?'bull':comp<=35?'bear':'amb'}">${comp}</span></div>`;
   }
 }
 
@@ -569,7 +705,7 @@ function renderScreener(cfg) {
     const d=new Date(cfg.screener_last_run);
     document.getElementById('scrRun').textContent=d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit'});
   }
-  if(cfg.screener_last_picks) document.getElementById('scrPicks').textContent=cfg.screener_last_picks;
+  if(cfg.screener_last_picks)document.getElementById('scrPicks').textContent=cfg.screener_last_picks;
 }
 
 function renderTrades(trades) {
@@ -590,63 +726,52 @@ function renderLogs(logs) {
   document.getElementById('logCnt').textContent=logs.length;
 }
 
-function setStatus(m){document.getElementById('stxt').textContent=m;}
-
 // ─── CONFIG ───────────────────────────────────────────────────
 async function openCfg() {
-  document.getElementById('cSBUrl').value=SB_URL;
-  document.getElementById('cSBKey').value=SB_KEY;
-  document.getElementById('cRail').value=RAILWAY_URL;
+  document.getElementById('cRail').value=localStorage.getItem('railway_url')||'';
   document.getElementById('cOSAppId').value=localStorage.getItem('os_app_id')||'';
   document.getElementById('cOSKey').value=localStorage.getItem('os_key')||'';
-  if(SB_URL&&SB_KEY){
-    try{
-      const cfg=await getConfig();
-      if(cfg){
-        document.getElementById('cTD').value=cfg.td_key||'';
-        document.getElementById('cAnt').value=cfg.ant_key||'';
-        document.getElementById('cEK').value=cfg.e_key||'';
-        document.getElementById('cES').value=cfg.e_secret||'';
-        document.getElementById('cAT').value=cfg.e_token||'';
-        document.getElementById('cAS').value=cfg.e_token_secret||'';
-        document.getElementById('cAcc').value=cfg.e_account||'';
-        document.getElementById('cItvl').value=cfg.interval||'5min';
-        document.getElementById('cCyc').value=cfg.cycle_seconds||60;
-        document.getElementById('cCap').value=cfg.capital||10000;
-        document.getElementById('cPos').value=cfg.pos_pct||95;
-        document.getElementById('cGrade').value=cfg.min_grade||'B';
-        document.getElementById('cScore').value=cfg.min_score||65;
-        document.getElementById('cWatch').value=cfg.watchlist||'';
-        document.getElementById('cSand').value=cfg.sandbox?'1':'0';
-        document.getElementById('cScrOn').value=cfg.screener_enabled?'1':'0';
-        document.getElementById('cScrGap').value=cfg.screener_min_gap||1.5;
-        document.getElementById('cScrMinPx').value=cfg.screener_min_price||10;
-        document.getElementById('cScrMaxPx').value=cfg.screener_max_price||500;
-        document.getElementById('cScrVol').value=cfg.screener_min_volume||500000;
-        document.getElementById('cScrPicks').value=cfg.screener_max_picks||15;
-        if(cfg.screener_universe)document.getElementById('cScrUni').value=cfg.screener_universe;
-        document.getElementById('cOSAppId').value=cfg.onesignal_app_id||localStorage.getItem('os_app_id')||'';
-        document.getElementById('cOSKey').value=cfg.onesignal_api_key||localStorage.getItem('os_key')||'';
-      }
-    }catch(e){}
-  }
+  try {
+    const cfg=await getConfig();
+    if(cfg){
+      document.getElementById('cTD').value=cfg.td_key||'';
+      document.getElementById('cAnt').value=cfg.ant_key||'';
+      document.getElementById('cEK').value=cfg.e_key||'';
+      document.getElementById('cES').value=cfg.e_secret||'';
+      document.getElementById('cAT').value=cfg.e_token||'';
+      document.getElementById('cAS').value=cfg.e_token_secret||'';
+      document.getElementById('cAcc').value=cfg.e_account||'';
+      document.getElementById('cItvl').value=cfg.interval||'5min';
+      document.getElementById('cCyc').value=cfg.cycle_seconds||60;
+      document.getElementById('cCap').value=cfg.capital||10000;
+      document.getElementById('cPos').value=cfg.pos_pct||95;
+      document.getElementById('cGrade').value=cfg.min_grade||'B';
+      document.getElementById('cScore').value=cfg.min_score||65;
+      document.getElementById('cWatch').value=cfg.watchlist||'';
+      document.getElementById('cSand').value=cfg.sandbox?'1':'0';
+      document.getElementById('cScrOn').value=cfg.screener_enabled?'1':'0';
+      document.getElementById('cScrGap').value=cfg.screener_min_gap||1.5;
+      document.getElementById('cScrMinPx').value=cfg.screener_min_price||10;
+      document.getElementById('cScrMaxPx').value=cfg.screener_max_price||500;
+      document.getElementById('cScrVol').value=cfg.screener_min_volume||500000;
+      document.getElementById('cScrPicks').value=cfg.screener_max_picks||15;
+      if(cfg.screener_universe)document.getElementById('cScrUni').value=cfg.screener_universe;
+      document.getElementById('cOSAppId').value=cfg.onesignal_app_id||'';
+      document.getElementById('cOSKey').value=cfg.onesignal_api_key||'';
+    }
+  } catch(e){}
   document.getElementById('cfgModal').classList.add('open');
 }
 
 async function saveConfig() {
-  SB_URL=document.getElementById('cSBUrl').value.trim().replace(/\/$/,'');
-  SB_KEY=document.getElementById('cSBKey').value.trim();
-  RAILWAY_URL=document.getElementById('cRail').value.trim().replace(/\/$/,'');
-  localStorage.setItem('sb_url',SB_URL);
-  localStorage.setItem('sb_key',SB_KEY);
-  localStorage.setItem('railway_url',RAILWAY_URL);
+  const railUrl=document.getElementById('cRail').value.trim().replace(/\/$/,'');
+  localStorage.setItem('railway_url', railUrl);
   const osAppId=document.getElementById('cOSAppId').value.trim();
   const osKey=document.getElementById('cOSKey').value.trim();
   if(osAppId)localStorage.setItem('os_app_id',osAppId);
   if(osKey)localStorage.setItem('os_key',osKey);
-  if(!SB_URL||!SB_KEY){alert('Supabase URL and Key are required');return;}
-  try{
-    await patchSBConfig({
+  try {
+    await patchConfig({
       td_key:document.getElementById('cTD').value.trim(),
       ant_key:document.getElementById('cAnt').value.trim(),
       e_key:document.getElementById('cEK').value.trim(),
@@ -674,7 +799,7 @@ async function saveConfig() {
     });
     closeCfg();
     refreshAll();
-  }catch(e){alert('Error saving: '+e.message);}
+  } catch(e) { alert('Error saving: '+e.message); }
 }
 
 function closeCfg(){document.getElementById('cfgModal').classList.remove('open');}
@@ -683,15 +808,6 @@ function closeCfg(){document.getElementById('cfgModal').classList.remove('open')
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 }
-
-// ─── INIT ─────────────────────────────────────────────────────
-if(!SB_URL||!SB_KEY){
-  document.getElementById('setupBanner').style.display='block';
-  setStatus('Setup required — tap CONFIG');
-}else{
-  refreshAll();
-}
-setInterval(refreshAll,5000);
 </script>
 </body>
 </html>
