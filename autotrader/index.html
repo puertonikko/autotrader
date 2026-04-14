@@ -958,12 +958,14 @@ sb.auth.onAuthStateChange(async (event, session) => {
       const cfg = cfgArr?.[0];
 
       if (!cfg) {
-        // No config row — new user, create one and show paywall
-        await fetch(`${SB_URL}/rest/v1/config`, {
-          method: 'POST',
-          headers: { ...REST_HDR, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-          body: JSON.stringify({ user_id: currentUser.id, subscription_status: 'inactive' })
-        });
+        // No config row — new user, try to create one (ignore conflict if already exists)
+        try {
+          await fetch(`${SB_URL}/rest/v1/config`, {
+            method: 'POST',
+            headers: { ...REST_HDR, 'Content-Type': 'application/json', Prefer: 'resolution=ignore-duplicates,return=minimal' },
+            body: JSON.stringify({ user_id: currentUser.id, subscription_status: 'inactive' })
+          });
+        } catch(e) {}
         hideLoader();
         showPaywall();
         return;
