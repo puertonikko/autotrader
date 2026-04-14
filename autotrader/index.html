@@ -945,33 +945,36 @@ sb.auth.onAuthStateChange(async (event, session) => {
     document.getElementById('userEmail').textContent = currentUser.email || '';
     document.getElementById('authScreen').classList.add('hidden');
 
-    // Safety timeout — if subscription check takes too long just show app
+    // Safety timeout — show paywall if check takes too long
     const safetyTimer = setTimeout(() => {
-      console.log('Auth timeout — showing app directly');
+      console.log('Auth timeout — showing paywall');
       hideLoader();
-      showApp();
-    }, 4000);
+      showPaywall();
+    }, 5000);
 
     try {
       const cfgArr = await restGet('config', `user_id=eq.${currentUser.id}&select=subscription_status,schwab_client_id`);
-      const cfg = cfgArr?.[0]; const error = null;
       clearTimeout(safetyTimer);
+      const cfg = cfgArr?.[0];
 
-      if (error || !cfg) {
-        // No config row yet or error — bypass paywall for now, show app
+      if (!cfg) {
+        // No config row — new user, create one and show paywall
+        await fetch(`${SB_URL}/rest/v1/config`, {
+          method: 'POST',
+          headers: { ...REST_HDR, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ user_id: currentUser.id, subscription_status: 'inactive' })
+        });
         hideLoader();
-        showApp();
+        showPaywall();
         return;
       }
 
-      const status = cfg?.subscription_status;
+      const status = cfg.subscription_status;
       if (status === 'active' || status === 'past_due') {
-        // Paid and active — show app
         const needsWizard = !cfg.schwab_client_id && !localStorage.getItem('wizard_done_' + currentUser.id);
         hideLoader();
         if (needsWizard) { showWizard(); } else { showApp(); }
       } else {
-        // No subscription, empty, inactive, or canceled — show paywall
         hideLoader();
         showPaywall();
       }
@@ -979,7 +982,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
       clearTimeout(safetyTimer);
       console.log('Auth check error:', e.message);
       hideLoader();
-      showApp(); // On any error just show the app
+      showPaywall();
     }
   } else {
     currentUser = null;
