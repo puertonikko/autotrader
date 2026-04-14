@@ -113,7 +113,9 @@ async function stripeGet(endpoint) {
 // Returns a URL to redirect the user to Stripe's hosted payment page
 app.post('/stripe/checkout', async (req, res) => {
   const { email, userId } = req.body;
-  if (!email || !userId) return res.json({ ok: false, error: 'Missing email or userId' });
+  if (!email) return res.json({ ok: false, error: 'Missing email' });
+  if (!userId) return res.json({ ok: false, error: 'Missing userId — auth session may have expired' });
+  console.log('[STRIPE] Checkout request — email:', email, 'userId:', userId);
   if (!STRIPE_SECRET || !STRIPE_PRICE_ID) return res.json({ ok: false, error: 'Stripe not configured on server' });
 
   try {
