@@ -924,6 +924,15 @@ async function doLogout() {
 }
 
 // ─── AUTH STATE ───────────────────────────────────────────────
+// Check if returning from Stripe payment
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('activated') === 'true') {
+  // Remove param from URL cleanly
+  window.history.replaceState({}, '', window.location.pathname);
+  // Will force subscription recheck when auth state fires
+  window._justActivated = true;
+}
+
 function hideLoader() {
   const loader = document.getElementById('loadingScreen');
   if (!loader || loader.style.display === 'none') return;
@@ -971,7 +980,25 @@ sb.auth.onAuthStateChange(async (event, session) => {
         return;
       }
 
-      const status = cfg.subscription_status;
+      let status = cfg.subscription_status;
+
+      // If returning from Stripe, poll until status updates (up to 10s)
+      if (window._justActivated && status !== 'active') {
+        window._justActivated = false;
+        let attempts = 0;
+        const poll = setInterval(async () => {
+          attempts++;
+          const freshArr = await restGet('config', `user_id=eq.${currentUser.id}&select=subscription_status`);
+          const freshStatus = freshArr?.[0]?.subscription_status;
+          if (freshStatus === 'active' || attempts >= 10) {
+            clearInterval(poll);
+            hideLoader();
+            showApp();
+          }
+        }, 1000);
+        return;
+      }
+
       if (status === 'active' || status === 'past_due') {
         const needsWizard = !cfg.schwab_client_id && !localStorage.getItem('wizard_done_' + currentUser.id);
         hideLoader();
