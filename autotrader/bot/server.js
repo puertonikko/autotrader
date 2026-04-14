@@ -122,7 +122,7 @@ app.post('/stripe/checkout', async (req, res) => {
     // Create Stripe customer
     const customer = await stripePost('/customers', {
       email,
-      metadata: { supabase_user_id: userId }
+      'metadata[supabase_user_id]': userId
     });
 
     console.log('[STRIPE] Customer result:', JSON.stringify(customer).substring(0, 300));
