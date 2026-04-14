@@ -15,10 +15,8 @@
 <script>
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 OneSignalDeferred.push(async function(OneSignal) {
-  const appId = localStorage.getItem('os_app_id');
-  if (!appId) return;
   await OneSignal.init({
-    appId,
+    appId: '56648f83-a63b-457b-8f4e-22ba27b9d3b7',
     notifyButton: { enable: false },
     promptOptions: {
       slidedown: {
