@@ -119,13 +119,19 @@ app.post('/stripe/checkout', async (req, res) => {
   if (!STRIPE_SECRET || !STRIPE_PRICE_ID) return res.json({ ok: false, error: 'Stripe not configured on server' });
 
   try {
-    // Create or retrieve Stripe customer
+    // Create Stripe customer
     const customer = await stripePost('/customers', {
       email,
       metadata: { supabase_user_id: userId }
     });
 
-    const railwayUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'your-railway-url.up.railway.app'}`;
+    console.log('[STRIPE] Customer result:', JSON.stringify(customer).substring(0, 300));
+
+    if (!customer.id) {
+      return res.json({ ok: false, error: 'Could not create Stripe customer: ' + (customer.error?.message || JSON.stringify(customer)) });
+    }
+
+    const railwayUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'autotrader-production-5b5d.up.railway.app'}`;
 
     // Create checkout session for $20/mo subscription
     const session = await stripePost('/checkout/sessions', {
