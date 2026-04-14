@@ -953,7 +953,8 @@ sb.auth.onAuthStateChange(async (event, session) => {
     }, 4000);
 
     try {
-      const { data: cfg, error } = await sb.from('config').select('subscription_status, schwab_client_id').eq('user_id', currentUser.id).single();
+      const cfgArr = await restGet('config', `user_id=eq.${currentUser.id}&select=subscription_status,schwab_client_id`);
+      const cfg = cfgArr?.[0]; const error = null;
       clearTimeout(safetyTimer);
 
       if (error || !cfg) {
@@ -1134,7 +1135,7 @@ async function wizardAutoSave() {
 
   wizSaveTimer = setTimeout(async () => {
     try {
-      await sb.from('config').update({
+      await restPatch('config', {
         schwab_client_id:     clientId,
         schwab_client_secret: clientSecret,
         updated_at:           new Date().toISOString()
@@ -1154,7 +1155,8 @@ function connectSchwab() {
   // Poll for connection
   const poll = setInterval(async () => {
     try {
-      const { data: cfg } = await sb.from('config').select('schwab_access_token, schwab_account_hash').eq('user_id', currentUser.id).single();
+      const pollArr = await restGet('config', `user_id=eq.${currentUser.id}&select=schwab_access_token,schwab_account_hash`);
+      const cfg = pollArr?.[0];
       if (cfg?.schwab_access_token) {
         clearInterval(poll);
         document.getElementById('schwabConnectArea').style.display = 'none';
@@ -1180,7 +1182,7 @@ async function toggleBot() {
   const { data: state } = await sb.from('bot_state').select('running').eq('user_id', currentUser.id).single();
   if (!state) return;
   const next = !state.running;
-  await sb.from('bot_state').update({ running: next }).eq('user_id', currentUser.id);
+  await restPatch('bot_state', { running: next }, `user_id=eq.${UID()}`);
   try { await fetch(RAILWAY_URL + (next ? '/bot/start' : '/bot/stop'), { method: 'POST' }); } catch(e) {}
   setTimeout(refreshAll, 1000);
 }
@@ -1192,11 +1194,27 @@ async function runScreener() {
   try { await fetch(RAILWAY_URL + '/screener/run', { method: 'POST' }); setStatus('Screener started...'); } catch(e) {}
 }
 
-// ─── DATA ─────────────────────────────────────────────────────
-const getState  = () => sb.from('bot_state').select('*').eq('user_id', currentUser.id).single().then(r => r.data);
-const getConfig = () => sb.from('config').select('*').eq('user_id', currentUser.id).single().then(r => r.data);
-const getTrades = () => sb.from('trades').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(60).then(r => r.data);
-const getLogs   = () => sb.from('activity_log').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(100).then(r => r.data);
+// ─── DATA — REST API (reliable, no RLS issues) ───────────────
+const SB_REST = SB_URL + '/rest/v1';
+const REST_HDR = { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON };
+
+async function restGet(table, query) {
+  const r = await fetch(`${SB_REST}/${table}?${query}`, { headers: REST_HDR });
+  return r.json();
+}
+async function restPatch(table, data, query) {
+  await fetch(`${SB_REST}/${table}?${query}`, {
+    method: 'PATCH',
+    headers: { ...REST_HDR, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+    body: JSON.stringify(data)
+  });
+}
+
+const UID = () => currentUser?.id;
+const getState  = () => restGet('bot_state', `user_id=eq.${UID()}`).then(r => r[0]);
+const getConfig = () => restGet('config',    `user_id=eq.${UID()}`).then(r => r[0]);
+const getTrades = () => restGet('trades',    `user_id=eq.${UID()}&order=created_at.desc&limit=60`);
+const getLogs   = () => restGet('activity_log', `user_id=eq.${UID()}&order=created_at.desc&limit=100`);
 
 // ─── REFRESH ─────────────────────────────────────────────────
 function startRefresh() {
@@ -1417,7 +1435,7 @@ async function saveConfig() {
       onesignal_app_id:     osAppId,
       onesignal_api_key:    osKey,
       updated_at:           new Date().toISOString()
-    }).eq('user_id', currentUser.id);
+    }, `user_id=eq.${UID()}`);
     closeCfg();
     refreshAll();
   } catch(e) { alert('Error saving: ' + e.message); }
