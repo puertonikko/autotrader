@@ -965,13 +965,13 @@ sb.auth.onAuthStateChange(async (event, session) => {
       }
 
       const status = cfg?.subscription_status;
-      if (status === 'active' || status === 'past_due' || !status || status === '') {
-        // Active, past due, or not set yet — show app
+      if (status === 'active' || status === 'past_due') {
+        // Paid and active — show app
         const needsWizard = !cfg.schwab_client_id && !localStorage.getItem('wizard_done_' + currentUser.id);
         hideLoader();
         if (needsWizard) { showWizard(); } else { showApp(); }
       } else {
-        // Explicitly inactive or canceled
+        // No subscription, empty, inactive, or canceled — show paywall
         hideLoader();
         showPaywall();
       }
