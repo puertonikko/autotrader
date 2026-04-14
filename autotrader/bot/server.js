@@ -14,6 +14,17 @@ import crypto from 'crypto';
 import { runScreener, startScreenerScheduler } from './screener.js';
 
 const app = express();
+
+// CORS — allow dashboard to call Railway API
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://autotrader-ruby.vercel.app';
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  next();
+});
+
 // Stripe webhook needs raw body — must be before express.json()
 app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
