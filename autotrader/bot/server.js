@@ -140,9 +140,9 @@ app.post('/stripe/checkout', async (req, res) => {
       'line_items[0][price]':      STRIPE_PRICE_ID,
       'line_items[0][quantity]':   1,
       customer:                    customer.id,
-      'metadata[user_id]':         userId,
-      success_url:                 `${railwayUrl}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:                  `${railwayUrl}/stripe/cancel`,
+      'metadata[user_id]':                    userId,
+      success_url:                            `${railwayUrl}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:                             `${railwayUrl}/stripe/cancel`,
       'subscription_data[metadata][user_id]': userId
     });
 
@@ -174,14 +174,19 @@ app.get('/stripe/success', async (req, res) => {
 
     if (userId && subId) {
       // Activate subscription in Supabase immediately
-      await sbPatch('config', {
-        stripe_customer_id:    custId,
+      console.log('[STRIPE] Activating subscription for user:', userId);
+      const updateResult = await sbPatch('config', {
+        stripe_customer_id:     custId,
         stripe_subscription_id: subId,
-        subscription_status:   'active',
-        subscription_end:      null
+        subscription_status:    'active',
+        subscription_end:       null
       }, `?user_id=eq.${userId}`);
-
+      console.log('[STRIPE] Update result:', JSON.stringify(updateResult).substring(0, 200));
       await addLog('info', `Subscription activated for user ${userId} — sub: ${subId}`);
+    } else {
+      console.log('[STRIPE] Missing userId or subId — userId:', userId, 'subId:', subId);
+      console.log('[STRIPE] Full session metadata:', JSON.stringify(session.metadata));
+      console.log('[STRIPE] Subscription:', JSON.stringify(session.subscription)?.substring(0, 200));
     }
 
     res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
