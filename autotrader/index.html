@@ -1227,8 +1227,8 @@ async function toggleBot() {
   setTimeout(refreshAll, 1000);
 }
 
-function openSchwabAuth() { window.open(RAILWAY_URL + '/schwab/auth', '_blank'); }
-function openETradeAuth() { window.open(RAILWAY_URL + '/etrade/auth', '_blank'); }
+function openSchwabAuth() { window.open(RAILWAY_URL + '/schwab/auth?user_id=' + currentUser.id, '_blank'); }
+function openETradeAuth() { window.open(RAILWAY_URL + '/etrade/auth?user_id=' + currentUser.id, '_blank'); }
 
 async function runScreener() {
   try { await fetch(RAILWAY_URL + '/screener/run', { method: 'POST' }); setStatus('Screener started...'); } catch(e) {}
