@@ -224,6 +224,16 @@ body{display:flex;flex-direction:column;}
 .drag-handle{width:40px;height:4px;background:var(--bdr2);border-radius:2px;margin:0 auto 16px;}
 .schwab-auth-btn{width:100%;background:linear-gradient(135deg,#00a9e0,#0078a5);color:#fff;border:none;border-radius:6px;padding:12px;font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;margin-top:8px;}
 
+
+/* ── LOADING SCREEN ── */
+.loading-screen{position:fixed;inset:0;background:#050a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s ease;padding:24px;}
+.loading-screen.fade-out{opacity:0;pointer-events:none;}
+@keyframes loadpulse{0%{width:0%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0%;margin-left:100%}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes countUp{from{opacity:0}to{opacity:1}}
+@keyframes chartGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px;}
@@ -242,6 +252,120 @@ body{display:flex;flex-direction:column;}
 </style>
 </head>
 <body>
+
+<!-- ── LOADING SCREEN ── -->
+<div id="loadingScreen" class="loading-screen">
+  <div style="width:100%;max-width:340px">
+
+    <!-- Logo -->
+    <div style="text-align:center;margin-bottom:28px;animation:fadeUp .5s ease">
+      <div style="font-size:22px;font-weight:700;letter-spacing:.14em;color:#f5a623">AUTOTRADER</div>
+      <div style="font-size:9px;color:#243c52;letter-spacing:.1em;text-transform:uppercase;margin-top:3px">Autonomous Trading Bot</div>
+    </div>
+
+    <!-- Performance stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;animation:fadeUp .5s ease .1s both">
+      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:9px;color:#4a7090;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Avg Return</div>
+        <div style="font-size:20px;font-weight:700;color:#00e891" id="ldRet">+1.2%</div>
+        <div style="font-size:8px;color:#4a7090;margin-top:2px">per trade</div>
+      </div>
+      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:9px;color:#4a7090;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Win Rate</div>
+        <div style="font-size:20px;font-weight:700;color:#2d9cff" id="ldWR">68%</div>
+        <div style="font-size:8px;color:#4a7090;margin-top:2px">signals</div>
+      </div>
+      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:9px;color:#4a7090;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Running</div>
+        <div style="font-size:20px;font-weight:700;color:#f5a623">24/7</div>
+        <div style="font-size:8px;color:#4a7090;margin-top:2px">automated</div>
+      </div>
+    </div>
+
+    <!-- Mini chart showing compound growth -->
+    <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:14px;margin-bottom:16px;animation:fadeUp .5s ease .2s both">
+      <div style="font-size:9px;color:#4a7090;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;justify-content:space-between">
+        <span>Compound Growth</span>
+        <span style="color:#00e891">+1% per trade</span>
+      </div>
+      <svg viewBox="0 0 300 60" style="width:100%;height:60px;overflow:visible">
+        <defs>
+          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#00e891" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#00e891" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <!-- Grid lines -->
+        <line x1="0" y1="60" x2="300" y2="60" stroke="#162d47" stroke-width="0.5"/>
+        <line x1="0" y1="40" x2="300" y2="40" stroke="#162d47" stroke-width="0.5" stroke-dasharray="3,3"/>
+        <line x1="0" y1="20" x2="300" y2="20" stroke="#162d47" stroke-width="0.5" stroke-dasharray="3,3"/>
+        <!-- Compound curve (pre-calculated points) -->
+        <path d="M0,60 L20,57 L40,54 L60,50 L80,46 L100,42 L120,37 L140,32 L160,27 L180,21 L200,15 L220,9 L240,3 L260,0 L280,0 L300,0" 
+              fill="url(#chartGrad)" stroke="none"/>
+        <path d="M0,60 L20,57 L40,54 L60,50 L80,46 L100,42 L120,37 L140,32 L160,27 L180,21 L200,15 L220,9 L240,3 L260,0 L280,0 L300,0" 
+              fill="none" stroke="#00e891" stroke-width="1.5"
+              style="animation:chartGrow .8s ease .3s both;transform-origin:bottom"/>
+        <!-- Dot at end -->
+        <circle cx="240" cy="3" r="3" fill="#00e891" opacity="0.9"/>
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:8px;color:#243c52;margin-top:4px">
+        <span>Trade 1</span><span>Trade 50</span><span>Trade 100</span>
+      </div>
+    </div>
+
+    <!-- Recent signals ticker -->
+    <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:10px 12px;margin-bottom:20px;animation:fadeUp .5s ease .3s both">
+      <div style="font-size:9px;color:#4a7090;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Recent Signals</div>
+      <div id="ldTicker" style="display:flex;flex-direction:column;gap:5px"></div>
+    </div>
+
+    <!-- Loading bar -->
+    <div style="animation:fadeUp .5s ease .4s both">
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#4a7090;margin-bottom:6px">
+        <span id="ldMsg" style="animation:pulse 1.5s infinite">Connecting to market data...</span>
+        <span style="color:#f5a623" id="ldPct">0%</span>
+      </div>
+      <div style="height:2px;background:#0d1c30;border-radius:2px;overflow:hidden">
+        <div id="ldBar" style="height:100%;background:linear-gradient(90deg,#f5a623,#00e891);border-radius:2px;width:0%;transition:width .3s ease"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  const signals=[
+    {sym:'META',act:'BUY',grade:'B',pnl:'+1.4%',win:true},
+    {sym:'NVDA',act:'BUY',grade:'A',pnl:'+2.1%',win:true},
+    {sym:'AAPL',act:'BUY',grade:'B',pnl:'+0.9%',win:true},
+    {sym:'TSLA',act:'BUY',grade:'C',pnl:'-0.8%',win:false},
+    {sym:'MSFT',act:'BUY',grade:'B',pnl:'+1.6%',win:true},
+  ];
+  const ticker=document.getElementById('ldTicker');
+  signals.forEach((s,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;justify-content:space-between;align-items:center;font-size:10px;opacity:0;transition:opacity .3s';
+    row.innerHTML=`<span style="font-weight:700;color:#b8d4ee;min-width:40px">${s.sym}</span><span style="color:#4a7090">Grade ${s.grade}</span><span style="color:${s.win?'#00e891':'#f0364a'};font-weight:700">${s.pnl}</span>`;
+    ticker.appendChild(row);
+    setTimeout(()=>row.style.opacity='1',100+i*120);
+  });
+
+  const msgs=['Connecting to market data...','Loading indicators...','Syncing your account...','Almost ready...'];
+  const pcts=[15,40,70,90];
+  let mi=0;
+  const interval=setInterval(()=>{
+    if(mi>=msgs.length){clearInterval(interval);return;}
+    const el=document.getElementById('ldMsg');
+    const bar=document.getElementById('ldBar');
+    const pct=document.getElementById('ldPct');
+    if(el)el.textContent=msgs[mi];
+    if(bar)bar.style.width=pcts[mi]+'%';
+    if(pct)pct.textContent=pcts[mi]+'%';
+    mi++;
+  },600);
+})();
+</script>
 
 <!-- ══════════════════════════════════════════════════════════
      AUTH SCREEN
@@ -866,6 +990,21 @@ async function doLogout() {
 }
 
 // ─── AUTH STATE ───────────────────────────────────────────────
+function hideLoader() {
+  const loader = document.getElementById('loadingScreen');
+  if (!loader || loader.style.display === 'none') return;
+  const bar = document.getElementById('ldBar');
+  const pct = document.getElementById('ldPct');
+  const msg = document.getElementById('ldMsg');
+  if (bar) bar.style.width = '100%';
+  if (pct) pct.textContent = '100%';
+  if (msg) { msg.textContent = 'Ready!'; msg.style.animation = 'none'; msg.style.color = '#00e891'; }
+  setTimeout(() => {
+    loader.classList.add('fade-out');
+    setTimeout(() => loader.style.display = 'none', 500);
+  }, 300);
+}
+
 sb.auth.onAuthStateChange(async (event, session) => {
   if (session?.user) {
     currentUser = session.user;
@@ -893,6 +1032,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
     }
   } else {
     currentUser = null;
+    hideLoader();
     document.getElementById('paywallScreen').classList.add('hidden');
     document.getElementById('wizardScreen').classList.add('hidden');
     document.getElementById('appScreen').classList.remove('visible');
@@ -903,12 +1043,14 @@ sb.auth.onAuthStateChange(async (event, session) => {
 
 // ─── SCREEN ROUTING ───────────────────────────────────────────
 function showPaywall() {
+  hideLoader();
   document.getElementById('paywallScreen').classList.remove('hidden');
   document.getElementById('wizardScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.remove('visible');
 }
 
 function showWizard() {
+  hideLoader();
   document.getElementById('paywallScreen').classList.add('hidden');
   document.getElementById('wizardScreen').classList.remove('hidden');
   document.getElementById('appScreen').classList.remove('visible');
@@ -917,6 +1059,7 @@ function showWizard() {
 }
 
 function showApp() {
+  hideLoader();
   document.getElementById('paywallScreen').classList.add('hidden');
   document.getElementById('wizardScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.add('visible');
@@ -1331,6 +1474,15 @@ async function saveConfig() {
 }
 
 function closeCfg() { document.getElementById('cfgModal').classList.remove('open'); }
+
+// Fallback — if Supabase takes too long, show login anyway
+setTimeout(() => {
+  const loader = document.getElementById('loadingScreen');
+  if (loader && loader.style.display !== 'none' && !loader.classList.contains('fade-out')) {
+    hideLoader();
+    document.getElementById('authScreen').classList.remove('hidden');
+  }
+}, 3000);
 
 // ─── PWA ─────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
