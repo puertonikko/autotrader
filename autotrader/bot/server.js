@@ -138,6 +138,13 @@ app.post('/stripe/checkout', async (req, res) => {
       'subscription_data[metadata][user_id]': userId
     });
 
+    console.log('[STRIPE] Session created:', JSON.stringify(session).substring(0, 200));
+
+    if (!session.url) {
+      console.log('[STRIPE] ERROR — no URL in session:', JSON.stringify(session));
+      return res.json({ ok: false, error: 'Stripe session missing URL: ' + (session.error?.message || JSON.stringify(session)) });
+    }
+
     res.json({ ok: true, url: session.url, sessionId: session.id });
   } catch (e) {
     res.json({ ok: false, error: e.message });
