@@ -541,26 +541,80 @@ app.get('/etrade/callback', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// MARKET DATA (Schwab or Twelve Data per user)
+// MARKET DATA
+// Priority: Schwab (user's own API) → Yahoo Finance (free, no key)
+// Yahoo Finance replaces Twelve Data for all E*Trade/sandbox users
+// Switch to Schwab when dev account approved — zero cost at scale
 // ═══════════════════════════════════════════════════════════════
-const TD = 'https://api.twelvedata.com';
+
+// Map our interval to Yahoo Finance interval format
+function toYahooInterval(interval) {
+  const map = { '1min': '1m', '5min': '5m', '15min': '15m', '1day': '1d' };
+  return map[interval] || '5m';
+}
+
+// Fetch candles from Yahoo Finance — free, no API key, no rate limits
+async function yahooFetchCandles(sym, interval, lookback) {
+  const yhInterval = toYahooInterval(interval);
+  // For intraday use 5d range, for daily use 3mo
+  const range = interval === '1day' ? '3mo' : '5d';
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=${yhInterval}&range=${range}&includePrePost=false`;
+  
+  const r = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0' }
+  });
+  const j = await r.json();
+  
+  const result = j?.chart?.result?.[0];
+  if (!result) throw new Error(`Yahoo: no data for ${sym}`);
+  
+  const timestamps = result.timestamp;
+  const q = result.indicators?.quote?.[0];
+  if (!timestamps || !q) throw new Error(`Yahoo: empty data for ${sym}`);
+  
+  const candles = timestamps.map((ts, i) => ({
+    date:   new Date(ts * 1000).toISOString(),
+    open:   q.open?.[i]   || 0,
+    high:   q.high?.[i]   || 0,
+    low:    q.low?.[i]    || 0,
+    close:  q.close?.[i]  || 0,
+    volume: q.volume?.[i] || 0
+  })).filter(c => c.close > 0); // filter null candles
+
+  if (!candles.length) throw new Error(`Yahoo: no valid candles for ${sym}`);
+  return candles.slice(-lookback);
+}
+
+// Fetch live quote from Yahoo Finance
+async function yahooFetchQuote(sym) {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1m&range=1d&includePrePost=false`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const j = await r.json();
+    const result = j?.chart?.result?.[0];
+    const meta   = result?.meta;
+    if (!meta) return null;
+    return {
+      price:     meta.regularMarketPrice || meta.previousClose || 0,
+      changePct: meta.regularMarketChangePercent || 0,
+      volume:    meta.regularMarketVolume || 0
+    };
+  } catch (e) { return null; }
+}
 
 async function fetchCandles(sym, cfg, token) {
-  if (cfg.broker === 'schwab' && token) return schwabFetchCandles(sym, cfg.interval, cfg.lookback || 90, token);
-  const r = await fetch(`${TD}/time_series?symbol=${sym}&interval=${cfg.interval}&outputsize=${cfg.lookback||90}&order=ASC&apikey=${cfg.td_key}`);
-  const j = await r.json();
-  if (j.status === 'error') throw new Error('TD: ' + j.message);
-  if (!j.values?.length) throw new Error('TD: no data for ' + sym);
-  return j.values.map(v => ({ date: v.datetime, open: +v.open, high: +v.high, low: +v.low, close: +v.close, volume: +(v.volume||0) }));
+  // Use Schwab if connected
+  if (cfg.broker === 'schwab' && token) {
+    return schwabFetchCandles(sym, cfg.interval, cfg.lookback || 90, token);
+  }
+  // Yahoo Finance for all other users — free, no key needed
+  return yahooFetchCandles(sym, cfg.interval, cfg.lookback || 90);
 }
 
 async function fetchQuote(sym, cfg, token) {
   try {
     if (cfg.broker === 'schwab' && token) return schwabFetchQuote(sym, token);
-    const r = await fetch(`${TD}/quote?symbol=${sym}&apikey=${cfg.td_key}`);
-    const j = await r.json();
-    if (j.status === 'error') return null;
-    return { price: +(j.close||j.price||0), changePct: +(j.percent_change||0) };
+    return yahooFetchQuote(sym);
   } catch (e) { return null; }
 }
 
