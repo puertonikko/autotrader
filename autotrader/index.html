@@ -905,6 +905,9 @@ async function restPatch(table, data, query) {
     body: JSON.stringify(data)
   });
 }
+async function patchConfig(d) {
+  await restPatch('config', { ...d, updated_at: new Date().toISOString() }, `user_id=eq.${UID()}`);
+}
 const UID = () => currentUser?.id;
 const getState  = () => restGet('bot_state',    `user_id=eq.${UID()}`).then(r => r[0]);
 const getConfig = () => restGet('config',        `user_id=eq.${UID()}`).then(r => r[0]);
@@ -1178,7 +1181,7 @@ async function wizardAutoSave() {
 
   wizSaveTimer = setTimeout(async () => {
     try {
-      await restPatch('config', {
+      await patchConfig({
         schwab_client_id:     clientId,
         schwab_client_secret: clientSecret,
         updated_at:           new Date().toISOString()
@@ -1458,7 +1461,7 @@ async function saveConfig() {
       onesignal_app_id:     osAppId,
       onesignal_api_key:    osKey,
       updated_at:           new Date().toISOString()
-    }, `user_id=eq.${UID()}`);
+    });
     closeCfg();
     refreshAll();
   } catch(e) { alert('Error saving: ' + e.message); }
