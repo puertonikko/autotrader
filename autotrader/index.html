@@ -255,52 +255,68 @@ body{display:flex;flex-direction:column;}
 
 <!-- ── LOADING SCREEN ── -->
 <div id="loadingScreen" class="loading-screen">
-  <div style="width:100%;max-width:320px;text-align:center">
+  <div style="width:100%;max-width:340px">
 
-    <div style="font-size:24px;font-weight:700;letter-spacing:.14em;color:#f5a623;margin-bottom:4px">AUTOTRADER</div>
-    <div style="font-size:9px;color:#243c52;letter-spacing:.1em;text-transform:uppercase;margin-bottom:32px">Autonomous Trading Bot</div>
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:24px;font-weight:700;letter-spacing:.14em;color:#f5a623">AUTOTRADER</div>
+      <div style="font-size:9px;color:#243c52;letter-spacing:.1em;text-transform:uppercase;margin-top:3px">Autonomous Trading Bot</div>
+    </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px">
-      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px">
-        <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Avg Return</div>
-        <div style="font-size:18px;font-weight:700;color:#00e891">+1.2%</div>
+    <!-- Global performance stats — loaded from Supabase -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Total Trades</div>
+        <div style="font-size:22px;font-weight:700;color:#00e891" id="ldTrades">—</div>
+        <div style="font-size:8px;color:#4a7090;margin-top:2px">all bots</div>
+      </div>
+      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Avg Return</div>
+        <div style="font-size:22px;font-weight:700;color:#2d9cff" id="ldAvg">—</div>
         <div style="font-size:8px;color:#4a7090;margin-top:2px">per trade</div>
       </div>
-      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px">
-        <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Win Rate</div>
-        <div style="font-size:18px;font-weight:700;color:#2d9cff">68%</div>
-        <div style="font-size:8px;color:#4a7090;margin-top:2px">signals</div>
-      </div>
-      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px">
-        <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Running</div>
-        <div style="font-size:18px;font-weight:700;color:#f5a623">24/7</div>
-        <div style="font-size:8px;color:#4a7090;margin-top:2px">automated</div>
+      <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Total Gains</div>
+        <div style="font-size:22px;font-weight:700;color:#f5a623" id="ldGains">—</div>
+        <div style="font-size:8px;color:#4a7090;margin-top:2px">combined</div>
       </div>
     </div>
 
+    <!-- Win rate bar -->
+    <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:9px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em">Win Rate</span>
+        <span style="font-size:11px;font-weight:700;color:#00e891" id="ldWR">—</span>
+      </div>
+      <div style="height:4px;background:#0d1c30;border-radius:2px;overflow:hidden">
+        <div id="ldWRBar" style="height:100%;background:#00e891;border-radius:2px;width:0%;transition:width 1s ease"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <span style="font-size:8px;color:#4a7090" id="ldWins">0 wins</span>
+        <span style="font-size:8px;color:#4a7090" id="ldActive">0 active bots</span>
+      </div>
+    </div>
+
+    <!-- Recent trades ticker -->
     <div style="background:#091422;border:1px solid #162d47;border-radius:8px;padding:12px;margin-bottom:20px">
-      <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;text-align:left">Recent Signals</div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <div style="display:flex;justify-content:space-between;font-size:10px"><span style="font-weight:700;color:#b8d4ee">META</span><span style="color:#4a7090">Grade B</span><span style="color:#00e891;font-weight:700">+1.4%</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:10px"><span style="font-weight:700;color:#b8d4ee">NVDA</span><span style="color:#4a7090">Grade A</span><span style="color:#00e891;font-weight:700">+2.1%</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:10px"><span style="font-weight:700;color:#b8d4ee">AAPL</span><span style="color:#4a7090">Grade B</span><span style="color:#00e891;font-weight:700">+0.9%</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:10px"><span style="font-weight:700;color:#b8d4ee">MSFT</span><span style="color:#4a7090">Grade B</span><span style="color:#00e891;font-weight:700">+1.6%</span></div>
+      <div style="font-size:8px;color:#4a7090;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Recent Trades</div>
+      <div id="ldTicker" style="display:flex;flex-direction:column;gap:5px;min-height:60px">
+        <div style="font-size:10px;color:#243c52;text-align:center;padding-top:16px">Loading...</div>
       </div>
     </div>
 
+    <!-- Progress bar -->
     <div>
       <div style="display:flex;justify-content:space-between;font-size:9px;color:#4a7090;margin-bottom:6px">
         <span id="ldMsg">Connecting...</span>
         <span style="color:#f5a623" id="ldPct">—</span>
       </div>
       <div style="height:2px;background:#0d1c30;border-radius:2px;overflow:hidden">
-        <div id="ldBar" style="height:100%;background:#f5a623;border-radius:2px;width:30%;animation:loadpulse 1.4s ease-in-out infinite"></div>
+        <div id="ldBar" style="height:100%;background:#f5a623;border-radius:2px;width:0%;transition:width .4s ease"></div>
       </div>
     </div>
 
   </div>
 </div>
-
 <!-- ══════════════════════════════════════════════════════════
      AUTH SCREEN
 ══════════════════════════════════════════════════════════ -->
@@ -716,11 +732,12 @@ body{display:flex;flex-direction:column;}
     <input class="mi" type="email" id="cNotifEmail" placeholder="Leave blank to use your account email" autocomplete="off"/>
     <div style="font-size:9px;color:var(--fg3);margin-bottom:8px;line-height:1.6">You will receive emails for every buy, sell, win and loss. Defaults to your login email if left blank.</div>
 
-    <div class="msec">Push Notifications (OneSignal)</div>
-    <div class="mlbl">OneSignal App ID</div>
-    <input class="mi" type="text" id="cOSAppId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off"/>
-    <div class="mlbl">OneSignal REST API Key</div>
-    <input class="mi" type="password" id="cOSKey" placeholder="REST API key" autocomplete="off"/>
+    <div class="msec">Push Notifications</div>
+    <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;padding:10px 12px;font-size:10px;color:var(--fg3);line-height:1.7">
+      Trade notifications are sent via email to your notification address above. Native push notifications coming in a future update.
+    </div>
+    <input class="mi" type="text" id="cOSAppId" style="display:none" autocomplete="off"/>
+    <input class="mi" type="password" id="cOSKey" style="display:none" autocomplete="off"/>
 
     <div class="mrow">
       <button class="btn-primary" style="margin-top:0" onclick="saveConfig()">SAVE</button>
@@ -962,19 +979,98 @@ if (urlParams.get('activated') === 'true') {
   window._justActivated = true;
 }
 
+const _loaderStart = Date.now();
+
+async function loadGlobalStats() {
+  try {
+    const SB_REST_L = 'https://olujbahtxcyoknfvlppx.supabase.co/rest/v1';
+    const HDR_L = { apikey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sdWpiYWh0eGN5b2tuZnZscHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NjUzNDYsImV4cCI6MjA5MTE0MTM0Nn0.OaKJXx62sZg-3YMxr-fJbloPZ8zIVi3Kr2YCpGp7_7Q', Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sdWpiYWh0eGN5b2tuZnZscHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NjUzNDYsImV4cCI6MjA5MTE0MTM0Nn0.OaKJXx62sZg-3YMxr-fJbloPZ8zIVi3Kr2YCpGp7_7Q' };
+
+    // Fetch all closed trades and active bots in parallel
+    const [tradesRes, botsRes, recentRes] = await Promise.all([
+      fetch(`${SB_REST_L}/trades?result=neq.OPEN&select=result,pnl`, { headers: HDR_L }),
+      fetch(`${SB_REST_L}/bot_state?running=eq.true&select=user_id`, { headers: HDR_L }),
+      fetch(`${SB_REST_L}/trades?result=neq.OPEN&select=symbol,result,pnl,entry_time&order=entry_time.desc&limit=5`, { headers: HDR_L })
+    ]);
+
+    const trades  = await tradesRes.json();
+    const bots    = await botsRes.json();
+    const recent  = await recentRes.json();
+
+    const closed  = Array.isArray(trades) ? trades : [];
+    const wins    = closed.filter(t => t.result === 'WIN');
+    const totalPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+    const avgPnl   = closed.length ? totalPnl / closed.length : 0;
+    const winRate  = closed.length ? (wins.length / closed.length * 100) : 0;
+    const activeBots = Array.isArray(bots) ? bots.length : 0;
+
+    // Update stat cards
+    const el = id => document.getElementById(id);
+    if (el('ldTrades')) el('ldTrades').textContent = closed.length;
+    if (el('ldAvg'))    el('ldAvg').textContent    = (avgPnl >= 0 ? '+' : '') + avgPnl.toFixed(2) + '%';
+    if (el('ldGains'))  el('ldGains').textContent  = (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(1) + '%';
+    if (el('ldWR'))     el('ldWR').textContent     = winRate.toFixed(0) + '%';
+    if (el('ldWRBar'))  el('ldWRBar').style.width  = winRate + '%';
+    if (el('ldWins'))   el('ldWins').textContent   = wins.length + ' wins';
+    if (el('ldActive')) el('ldActive').textContent = activeBots + ' active bot' + (activeBots !== 1 ? 's' : '');
+
+    // Populate recent trades ticker
+    const ticker = el('ldTicker');
+    if (ticker && Array.isArray(recent) && recent.length) {
+      ticker.innerHTML = recent.map(t => {
+        const win = t.result === 'WIN';
+        const pnl = t.pnl || 0;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:10px">
+          <span style="font-weight:700;color:#b8d4ee;min-width:44px">${t.symbol}</span>
+          <span style="color:${win?'#00e891':'#f0364a'};font-size:8px;font-weight:700;padding:2px 6px;background:${win?'rgba(0,232,145,.1)':'rgba(240,54,74,.1)'};border-radius:3px">${t.result}</span>
+          <span style="color:${pnl>=0?'#00e891':'#f0364a'};font-weight:700">${pnl>=0?'+':''}${pnl.toFixed(2)}%</span>
+        </div>`;
+      }).join('');
+    } else if (ticker) {
+      ticker.innerHTML = '<div style="font-size:10px;color:#243c52;text-align:center;padding-top:8px">No trades yet — start your bot!</div>';
+    }
+  } catch(e) {
+    console.log('Stats load error:', e.message);
+  }
+}
+
+// Animate progress bar during load
+let _ldProgress = 0;
+const _ldInterval = setInterval(() => {
+  _ldProgress = Math.min(_ldProgress + (Math.random() * 12 + 3), 85);
+  const bar = document.getElementById('ldBar');
+  const pct = document.getElementById('ldPct');
+  const msgs = ['Connecting...', 'Loading market data...', 'Syncing trades...', 'Almost ready...'];
+  const msg = document.getElementById('ldMsg');
+  if (bar) bar.style.width = _ldProgress + '%';
+  if (pct) pct.textContent = Math.round(_ldProgress) + '%';
+  if (msg) msg.textContent = msgs[Math.min(Math.floor(_ldProgress/25), msgs.length-1)];
+}, 600);
+
+// Load stats immediately
+loadGlobalStats();
+
 function hideLoader() {
   const loader = document.getElementById('loadingScreen');
   if (!loader || loader.style.display === 'none') return;
-  const bar = document.getElementById('ldBar');
-  const pct = document.getElementById('ldPct');
-  const msg = document.getElementById('ldMsg');
-  if (bar) bar.style.width = '100%';
-  if (pct) pct.textContent = '100%';
-  if (msg) { msg.textContent = 'Ready!'; msg.style.animation = 'none'; msg.style.color = '#00e891'; }
+
+  // Ensure minimum 5 second display
+  const elapsed = Date.now() - _loaderStart;
+  const remaining = Math.max(0, 5000 - elapsed);
+
   setTimeout(() => {
-    loader.classList.add('fade-out');
-    setTimeout(() => loader.style.display = 'none', 500);
-  }, 300);
+    clearInterval(_ldInterval);
+    const bar = document.getElementById('ldBar');
+    const pct = document.getElementById('ldPct');
+    const msg = document.getElementById('ldMsg');
+    if (bar) bar.style.width = '100%';
+    if (pct) pct.textContent = '100%';
+    if (msg) { msg.textContent = 'Ready!'; msg.style.color = '#00e891'; }
+    setTimeout(() => {
+      loader.classList.add('fade-out');
+      setTimeout(() => loader.style.display = 'none', 500);
+    }, 400);
+  }, remaining);
 }
 
 sb.auth.onAuthStateChange(async (event, session) => {
