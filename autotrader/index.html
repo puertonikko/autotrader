@@ -883,6 +883,34 @@ const RAILWAY_URL = 'https://autotrader-production-5b5d.up.railway.app';
 const { createClient } = supabase;
 const sb = createClient(SB_URL, SB_ANON);
 
+// REST API setup — defined early so available to all functions
+const SB_REST = SB_URL + '/rest/v1';
+const REST_HDR = { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON };
+
+async function restGet(table, query) {
+  const r = await fetch(`${SB_REST}/${table}?${query}`, { headers: REST_HDR });
+  return r.json();
+}
+async function patchState(d) {
+  await fetch(`${SB_REST}/bot_state?user_id=eq.${currentUser?.id}`, {
+    method: 'PATCH',
+    headers: { ...REST_HDR, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+    body: JSON.stringify({ ...d, updated_at: new Date().toISOString() })
+  });
+}
+async function restPatch(table, data, query) {
+  await fetch(`${SB_REST}/${table}?${query}`, {
+    method: 'PATCH',
+    headers: { ...REST_HDR, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+    body: JSON.stringify(data)
+  });
+}
+const UID = () => currentUser?.id;
+const getState  = () => restGet('bot_state',    `user_id=eq.${UID()}`).then(r => r[0]);
+const getConfig = () => restGet('config',        `user_id=eq.${UID()}`).then(r => r[0]);
+const getTrades = () => restGet('trades',        `user_id=eq.${UID()}&order=created_at.desc&limit=60`);
+const getLogs   = () => restGet('activity_log',  `user_id=eq.${UID()}&order=created_at.desc&limit=100`);
+
 let currentUser = null;
 let refreshInterval = null;
 let wizardStep = 0;
@@ -1209,27 +1237,7 @@ async function runScreener() {
   try { await fetch(RAILWAY_URL + '/screener/run', { method: 'POST' }); setStatus('Screener started...'); } catch(e) {}
 }
 
-// ─── DATA — REST API (reliable, no RLS issues) ───────────────
-const SB_REST = SB_URL + '/rest/v1';
-const REST_HDR = { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON };
-
-async function restGet(table, query) {
-  const r = await fetch(`${SB_REST}/${table}?${query}`, { headers: REST_HDR });
-  return r.json();
-}
-async function restPatch(table, data, query) {
-  await fetch(`${SB_REST}/${table}?${query}`, {
-    method: 'PATCH',
-    headers: { ...REST_HDR, 'Content-Type': 'application/json', Prefer: 'return=representation' },
-    body: JSON.stringify(data)
-  });
-}
-
-const UID = () => currentUser?.id;
-const getState  = () => restGet('bot_state', `user_id=eq.${UID()}`).then(r => r[0]);
-const getConfig = () => restGet('config',    `user_id=eq.${UID()}`).then(r => r[0]);
-const getTrades = () => restGet('trades',    `user_id=eq.${UID()}&order=created_at.desc&limit=60`);
-const getLogs   = () => restGet('activity_log', `user_id=eq.${UID()}&order=created_at.desc&limit=100`);
+// ─── DATA — REST API (defined above near top) ───────────────
 
 // ─── REFRESH ─────────────────────────────────────────────────
 function startRefresh() {
