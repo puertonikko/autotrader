@@ -1253,15 +1253,18 @@ async function refreshAll() {
   if (!currentUser) return;
   try {
     const [state, cfg, trades, logs] = await Promise.all([getState(), getConfig(), getTrades(), getLogs()]);
-    renderState(state, cfg, trades);
-    renderAnalysis(state);
-    renderGrade(state);
-    renderCoefs(state);
-    renderTrades(trades);
-    renderLogs(logs);
-    renderScreener(cfg);
+    try { renderState(state, cfg, trades); } catch(e) { console.log('renderState error:', e.message); }
+    try { renderAnalysis(state); } catch(e) { console.log('renderAnalysis error:', e.message); }
+    try { renderGrade(state); } catch(e) { console.log('renderGrade error:', e.message); }
+    try { renderCoefs(state); } catch(e) { console.log('renderCoefs error:', e.message); }
+    try { renderTrades(trades); } catch(e) { console.log('renderTrades error:', e.message); }
+    try { renderLogs(logs); } catch(e) { console.log('renderLogs error:', e.message); }
+    try { renderScreener(cfg); } catch(e) { console.log('renderScreener error:', e.message); }
     document.getElementById('lastSync').textContent = new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  } catch(e) { setStatus('Sync error — retrying...'); }
+  } catch(e) { 
+    console.log('Sync error:', e.message, e.stack);
+    setStatus('Sync error — retrying...'); 
+  }
 }
 
 // ─── RENDERERS ───────────────────────────────────────────────
